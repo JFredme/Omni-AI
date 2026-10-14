@@ -1,0 +1,37 @@
+# Starts OMNI AI and its database:  docker compose up --build   then open http://localhost:3000
+# Set ENCRYPTION_KEY first (openssl rand -base64 32) in a .env file next to this one, or export it.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omni
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omni-local-only}
+      POSTGRES_DB: omni_ai
+    volumes:
+      - omni-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omni -d omni_ai"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://omni:${POSTGRES_PASSWORD:-omni-local-only}@db:5432/omni_ai
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY (openssl rand -base64 32) before starting}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OMNI_PUBLIC_URL: ${OMNI_PUBLIC_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      # Only this computer can reach it. Put a reverse proxy with HTTPS in front before exposing it further.
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  omni-db:

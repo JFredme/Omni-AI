@@ -1,6 +1,6 @@
 # OMNI AI: project progress
 
-Branch: `part-3-tasks-notes-projects` (not pushed). Last updated after integrations.
+Branch: `part-3-tasks-notes-projects` (not pushed). Last updated after analytics.
 Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailwind v4, Prisma 7, PostgreSQL. AI only through OpenRouter.
 
 ## How to resume
@@ -29,14 +29,15 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 | Documents: structured document/deck/sheet model, renderers (PDF via pdf-lib, DOCX via docx, PPTX via pptxgenjs, XLSX via write-excel-file, CSV/MD/TXT), Markdown parser, AI drafting, `/documents` page, exports from notes/projects/tasks/research; every format verified by reading the file back | done |
 | Integrations: encrypted connections, GitHub/Notion/Todoist/Slack/Discord/Google providers, Google OAuth (PKCE + one-time state + refresh), action registry shared by UI/agent tools/automation step, confirmation on every write, Email Agent (drafts only). **Only tested against stand-in servers, never the live services** | done, unverified live |
 | Memory: add/edit/search/export/delete, global on/off, "Remember this" in chat; RAG in chat with saved, numbered citations; agent tools `search_knowledge`, `search_memory`, `remember`; Document Analyst agent | done |
+| Analytics: `/api/analytics` (tasks per day, median time to finish, priority/project split, scheduled vs focus hours, AI spend by day and model, activity counts; days follow the viewer's time zone) and the `/analytics` page with 7/30/90 day ranges | done |
+| Docker: `Dockerfile`, `docker-compose.yml` (Postgres 16 + app, migrations on start), `.dockerignore`. **Never built or run here (no Docker installed)** | written, unverified |
 
 ## Not built yet (in roadmap order)
 - **Chat still missing:** tool calling inside a chat (agents cover tools).
 - **Tasks/notes extras:** recurring tasks, dependencies, backlinks, rich-text editor, activity history, AI note rewriting, smart scheduling.
 - **Google Calendar sync** (needs a Google OAuth client; calendar itself and .ics import/export are done).
-- **Universal AI command bar**, **analytics dashboard**, **real home dashboard data** (done: home is now real data from `/api/dashboard`).
+- **Universal AI command bar** (⌘K currently searches and navigates; natural-language commands are not built).
 - **Security still open:** none of the listed items; uploads are validated (extension, magic bytes, size, text-only decoding) and never stored or served. Re-audit when attachments and integrations land.
-- **Docker** configuration; **.env.example** exists but should be reviewed when new variables appear.
 - Built-in agents still missing (they need tools that don't exist yet): Data Analyst, Automation.
 
 ## Design notes worth knowing

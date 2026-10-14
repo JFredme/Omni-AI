@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+public/monaco
+src/generated
+e2e
+*.log
+tsconfig.tsbuildinfo

@@ -62,11 +62,12 @@ try {
     await desktop.getByRole("heading", { name: "Tasks", level: 1 }).waitFor();
   });
 
-  await check("module placeholder page is honest about status", async () => {
+  await check("analytics page loads real numbers and switches range", async () => {
     await desktop.goto(`${baseUrl}/analytics`);
     await desktop.getByRole("heading", { name: "Analytics", level: 1 }).waitFor();
-    const text = await desktop.locator("main").textContent();
-    assert.match(text ?? "", /Not built yet/);
+    await desktop.getByRole("heading", { name: "AI usage", level: 2 }).waitFor();
+    await desktop.getByRole("button", { name: "7 days" }).click();
+    await desktop.getByRole("button", { name: "7 days" }).and(desktop.locator("[aria-pressed=true]")).waitFor();
   });
 
   await check("sidebar collapse shortcut toggles and persists across reload", async () => {

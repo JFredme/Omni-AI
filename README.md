@@ -30,7 +30,7 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Integrations: GitHub, Notion, Todoist, Slack, Discord, Google (Gmail, Calendar, Drive) with confirmations, agent tools, and an automation step | Done, **not tested against the live services** (see Integrations) |
 | Documents: draft documents, slides and spreadsheets with AI; export to PDF, Word, PowerPoint, Excel, Markdown, text, CSV; exports from notes, tasks, projects and research | Done |
 | Code workspace: Monaco editor, projects and files, AI explain/review/edit/tests with diffs, Docker-sandboxed Run | Done (Run needs Docker; not verified here) |
-| Analytics | Not started (routes show a "Not built yet" page) |
+| Analytics: tasks finished, time scheduled, AI spend by day and model, activity, with 7/30/90 day ranges | Done |
 
 ## Requirements
 
@@ -62,6 +62,15 @@ npm run dev                       # http://127.0.0.1:3000
 Then open **Settings**, paste your OpenRouter key, click **Save key**, and **Test connection**. Get a key at https://openrouter.ai/keys.
 
 You can instead set `OPENROUTER_API_KEY` in `.env`. The environment key is used when no key is saved in Settings, and the Settings page shows which source is active.
+
+### Running in Docker
+
+```bash
+echo "ENCRYPTION_KEY=$(openssl rand -base64 32)" > .env     # skip if you already have a .env
+docker compose up --build                                     # http://localhost:3000
+```
+
+This starts PostgreSQL 16 and the app, applies migrations on start, and publishes the app on this computer only. **The Docker files were written but not run on the machine this was built on (Docker wasn't installed there), so treat the first build as untested.** The code workspace's Run button needs access to Docker itself, which the compose file does not grant; it shows as unavailable inside the container.
 
 ## OpenRouter configuration
 
@@ -238,6 +247,10 @@ An automation is one **trigger** and an ordered list of **steps**. It is built o
 - **Citations in chat.** With the **Knowledge** toggle on, each message searches your documents, and the model is given the top passages as numbered sources and told to cite them as `[1]`. The sources are saved with the reply. Sources the reply cites are highlighted; the others are shown as retrieved but not cited. Text inside your documents is passed as data, not instructions, and tags in it are neutralized so it can't close the block it sits in.
 - **Memory** is a list of facts you choose to keep ("I prefer metric units"). Relevant ones are sent along with your message while **Use memories in chat** is on; turn it off and none leave your database. Add them on the Memory tab, or choose **Remember this** under any message you sent. You can edit, search, export as JSON, or delete them all (a confirmation is required).
 - **Agents.** `search_knowledge` and `search_memory` are read tools available to every agent; `remember` writes, so it asks for approval by default. The built-in **Document Analyst** answers from your documents and names the source.
+
+## Analytics
+
+Open **Analytics** for 7, 30, or 90 days of your own data: tasks created and finished per day (with median time to finish, and counts by priority and project), calendar hours versus hours set aside for tasks, AI spend and requests per day with a per-model table and the month against your limit, and activity counts (conversations, notes, documents, reports, agent and automation runs). Days follow your browser's time zone. Nothing is estimated: requests the provider didn't report a cost for are counted and called out rather than priced.
 
 ## Keyboard shortcuts
 

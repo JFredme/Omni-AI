@@ -156,7 +156,7 @@ export const navItems: NavItem[] = [
     description: "Productivity trends, focus time, and AI usage costs.",
     icon: ChartColumn,
     section: "Automation",
-    status: "planned",
+    status: "ready",
   },
   {
     id: "settings",
