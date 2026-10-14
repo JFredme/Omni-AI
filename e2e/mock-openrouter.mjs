@@ -178,6 +178,13 @@ function agentReply(user) {
 /** Builds the JSON a well-behaved model would return for each planning request. */
 function structuredReply(system, user) {
   if (system.includes("OMNI agent")) return agentReply(user);
+  if (system.includes("careful senior engineer")) {
+    const original = /File ([^\n]+):\n([\s\S]*)\n<\/data>/.exec(user);
+    const file = original?.[2] ?? "";
+    if (system.includes("Make the change the user asks for")) return { explanation: "Added a header comment as asked.", newContent: `# reviewed by the assistant\n${file}` };
+    if (system.includes("Write tests")) return { explanation: "Run it with python -m unittest.", newContent: "import unittest\n\nclass T(unittest.TestCase):\n    def test_it(self):\n        self.assertTrue(True)\n" };
+    return { explanation: system.includes("Review this file") ? "No serious problems found." : "This file prints a greeting.", newContent: null };
+  }
   if (system.includes("plan web searches")) {
     const question = /<data>\n([\s\S]*?)\n<\/data>/.exec(user)?.[1] ?? "question";
     return { queries: [question.slice(0, 80), `${question.slice(0, 60)} overview`] };

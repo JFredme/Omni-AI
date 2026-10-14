@@ -1,6 +1,6 @@
 # OMNI AI: project progress
 
-Branch: `part-3-tasks-notes-projects` (not pushed). Last updated after research.
+Branch: `part-3-tasks-notes-projects` (not pushed). Last updated after the code workspace.
 Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailwind v4, Prisma 7, PostgreSQL. AI only through OpenRouter.
 
 ## How to resume
@@ -25,18 +25,18 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 | Calendar: events with time-zone-correct repeats, month/week/agenda UI, task/milestone overlay, .ics import/export, AI time blocking (propose/apply), home schedule, `list_events`/`create_event` tools, Calendar Assistant agent | done |
 | Automations: workflow model, engine (sequential steps, run history, recovery), scheduler via `src/instrumentation.ts`, event triggers (`emitAppEvent`), webhooks (`/api/hooks/[token]`), SSRF-guarded HTTP step, visual flow editor, templates | done |
 | Research: Brave/Tavily/SearXNG providers (encrypted key), page fetcher with SSRF guard, readable-text extractor, plan→search→read→synthesize engine with validated citations, report storage, UI, `web_search`/`read_webpage` tools (read only addresses from this run's searches), Research Agent | done |
+| Code workspace: projects/files in DB, Monaco (self-hosted via `scripts/copy-monaco.mjs`), AI explain/review/edit/tests with diff + apply, Docker sandbox runner (hardened flags, kill-by-name, output cap, clean env, no host fallback), `list/read/write_code_file` tools, Coding Agent. **Real Docker execution was never run here (no Docker installed)** | done, partly unverified |
 | Memory: add/edit/search/export/delete, global on/off, "Remember this" in chat; RAG in chat with saved, numbered citations; agent tools `search_knowledge`, `search_memory`, `remember`; Document Analyst agent | done |
 
 ## Not built yet (in roadmap order)
 - **Chat still missing:** tool calling inside a chat (agents cover tools).
 - **Tasks/notes extras:** recurring tasks, dependencies, backlinks, rich-text editor, activity history, AI note rewriting, smart scheduling.
 - **Google Calendar sync** (needs a Google OAuth client; calendar itself and .ics import/export are done).
-- **Coding workspace** (Monaco, sandboxed execution: must not run AI commands on the host without isolation and approval).
 - **Document generation** (PDF/DOCX/PPTX/XLSX libraries), **integrations** (OAuth for Gmail, Calendar, Drive, GitHub, Notion, Todoist, Discord, Slack).
 - **Universal AI command bar**, **analytics dashboard**, **real home dashboard data** (done: home is now real data from `/api/dashboard`).
 - **Security still open:** none of the listed items; uploads are validated (extension, magic bytes, size, text-only decoding) and never stored or served. Re-audit when attachments and integrations land.
 - **Docker** configuration; **.env.example** exists but should be reviewed when new variables appear.
-- Built-in agents still missing (they need tools that don't exist yet): Coding, Email, Data Analyst, Automation.
+- Built-in agents still missing (they need tools that don't exist yet): Email, Data Analyst, Automation.
 
 ## Design notes worth knowing
 - `src/lib/ai/run.ts` `runAiJson` is the single non-streaming AI entry point (JSON in, validated JSON out, usage recorded, `onUsage` callback). Agents and AI proposals both use it.
@@ -60,4 +60,4 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 
 ## Test results (last full run)
 - typecheck, lint: pass.
-- Unit: 316 passed (49 files). Integration: 179 passed (13 files, real Postgres, mocked OpenRouter). E2E on a production build: auth 9, smoke 9, chat 10, productivity 25, agents 14, knowledge 17, chat-extras 14, calendar 14, automations 13, research 11, all passed.
+- Unit: 331 passed (51 files). Integration: 188 passed (14 files, real Postgres, mocked OpenRouter). E2E on a production build: auth 9, smoke 9, chat 10, productivity 25, agents 14, knowledge 17, chat-extras 14, calendar 14, automations 13, research 11, code 13, all passed.

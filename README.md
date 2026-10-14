@@ -27,7 +27,8 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Calendar: month/week/agenda views, repeating events, tasks and milestones overlay, .ics import/export, AI time blocking | Done (Google Calendar sync needs OAuth; see Calendar) |
 | Automations: visual step flows, schedule/event/webhook triggers, run history | Done |
 | Research: web search provider, page reading, cited reports | Done (needs a search provider key) |
-| Code workspace, analytics | Not started (routes show a "Not built yet" page) |
+| Code workspace: Monaco editor, projects and files, AI explain/review/edit/tests with diffs, Docker-sandboxed Run | Done (Run needs Docker; not verified here) |
+| Analytics | Not started (routes show a "Not built yet" page) |
 
 ## Requirements
 
@@ -148,6 +149,17 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Persistence and recovery.** Runs, steps, and costs are stored in PostgreSQL. A run that was working when the server stopped resumes on the next visit. A tool that was mid-flight is never repeated: the agent is told it may or may not have completed. Runs waiting for approval stay paused.
 - **Prompt injection.** Tool results and your workspace text go to the model inside `<data>` blocks with instructions to treat them as information, and the agent can only use tools you enabled. The main protection is that consequential actions need approval.
 - **Built-in agents:** General Assistant, Project Manager, Study Assistant, and Writing Agent. They are read-only; duplicate one to customize it. The Research, Coding, Email, Calendar, Document Analyst, Data Analyst, and Automation agents will be added together with the tools they need, rather than shipped without them.
+
+## Code workspace
+
+A place to write and edit code, with an assistant that proposes changes you review.
+
+- **Projects and files** are stored in your database (up to 200 files of 500 KB each per project, plain text only). The editor is Monaco, the editor behind VS Code, served by this app itself rather than a CDN. Files autosave, and names can't climb out of the project (`..`, absolute paths, spaces, and shell characters are refused).
+- **The assistant** can explain a file, review it for problems, make a change you describe, or write tests. A change comes back as a **diff**; nothing in your files changes until you press *Apply*, and written tests are offered as a new file whose name you choose. Your file is sent to your default model, fenced as data so instructions inside it can't override the rules.
+- **Run** starts the selected `.js`/`.mjs`/`.cjs` or `.py` file in a **Docker container**: no network, read-only file system, all Linux capabilities dropped, no privilege escalation, a non-root user, 256 MB of memory, 64 processes, one CPU, a 15-second limit, and 64 KB of captured output. Only that project's files are copied in, and the docker program never sees this app's environment (database URL, keys). If Docker isn't installed or running, **Run is disabled and says so; there is no fallback that runs code on your computer.** Only a person pressing Run starts a run: agents and automations have no way to run code.
+- **Not verified on the machine this was built on:** it had no Docker, so the container itself was never started. The command Omni builds, the timeout and kill-by-name handling, the output cap, the clean environment, and the "Docker missing" behavior are tested against a stand-in `docker` program; the first real run on your machine is the real test. Settings: `CODE_SANDBOX_NODE_IMAGE`, `CODE_SANDBOX_PYTHON_IMAGE`, `CODE_RUN_TIMEOUT_MS`, `CODE_DOCKER_BIN`.
+- **Agents.** `list_code_files` and `read_code_file` read; `write_code_file` changes files, so it asks for approval. The built-in **Coding Agent** uses them and has no run tool.
+- Not built: a terminal, git, language servers beyond what Monaco includes, and running languages other than JavaScript and Python.
 
 ## Research
 

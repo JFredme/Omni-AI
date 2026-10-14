@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# code editor files, copied from node_modules by scripts/copy-monaco.mjs
+/public/monaco

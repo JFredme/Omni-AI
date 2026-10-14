@@ -1,5 +1,5 @@
 // Runs the end-to-end suite: mock OpenRouter, a fresh e2e database, a production build of the app,
-// then the browser tests (e2e/auth.mjs, e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, e2e/agents.mjs, e2e/knowledge.mjs, e2e/chat-extras.mjs, e2e/calendar.mjs, e2e/automations.mjs, and e2e/research.mjs). Requires Google Chrome installed.
+// then the browser tests (e2e/auth.mjs, e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, e2e/agents.mjs, e2e/knowledge.mjs, e2e/chat-extras.mjs, e2e/calendar.mjs, e2e/automations.mjs, e2e/research.mjs, and e2e/code.mjs). Requires Google Chrome installed.
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -97,6 +97,7 @@ try {
   runOrFail("node", ["e2e/calendar.mjs"]);
   runOrFail("node", ["e2e/automations.mjs"]);
   runOrFail("node", ["e2e/research.mjs"]);
+  runOrFail("node", ["e2e/code.mjs"]);
   console.log("\nAll end-to-end suites passed.");
 } finally {
   stopAll();

@@ -13,6 +13,7 @@ const knowledge = () => import("@/lib/knowledge/service");
 const memory = () => import("@/lib/knowledge/memory");
 const calendar = () => import("@/lib/calendar/service");
 const research = () => import("@/lib/research/service");
+const code = () => import("@/lib/code/service");
 
 export interface ToolContext {
   runId: string;
@@ -331,6 +332,42 @@ export const TOOLS: ToolDef[] = [
     usage: "{}",
     args: z.object({}),
     run: async () => (await (await research()).listReports(20)).map((report) => ({ id: report.id, question: report.question, status: report.status, sources: report.sources.length })),
+  }),
+  tool({
+    name: "list_code_files",
+    description: "List the code workspace's projects, or the files in one project (give projectId).",
+    risk: "read",
+    usage: '{ "projectId"?: id }',
+    args: z.object({ projectId: id.optional() }),
+    run: async ({ projectId }) => {
+      const service = await code();
+      if (!projectId) return (await service.listProjects()).map((p) => ({ id: p.id, name: p.name, files: p.fileCount }));
+      return (await service.listFiles(projectId)).map((f) => ({ id: f.id, path: f.path, bytes: f.size }));
+    },
+  }),
+  tool({
+    name: "read_code_file",
+    description: "Read a file from the code workspace (up to 12000 characters).",
+    risk: "read",
+    usage: '{ "fileId": id }',
+    args: z.object({ fileId: id }),
+    run: async ({ fileId }) => {
+      const file = await (await code()).getFile(fileId);
+      return { path: file.path, content: file.content.slice(0, 12_000), truncated: file.content.length > 12_000 };
+    },
+  }),
+  tool({
+    name: "write_code_file",
+    description: "Create a file in a code project, or replace the whole contents of an existing one. There is no tool to run code.",
+    risk: "write",
+    usage: '{ "projectId": id, "path": "relative/path.ext", "content": text }',
+    args: z.object({ projectId: id, path: z.string().trim().min(1).max(160), content: z.string().max(200_000) }),
+    run: async ({ projectId, path, content }) => {
+      const service = await code();
+      const existing = (await service.listFiles(projectId)).find((file) => file.path === path);
+      const file = existing ? await service.saveFile(existing.id, content) : await service.createFile(projectId, path, content);
+      return { id: file.id, path: file.path, written: content.length, replacedExisting: Boolean(existing) };
+    },
   }),
   tool({
     name: "delegate",

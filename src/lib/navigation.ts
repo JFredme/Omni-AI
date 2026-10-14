@@ -115,10 +115,10 @@ export const navItems: NavItem[] = [
     id: "code",
     href: "/code",
     label: "Code",
-    description: "Editor, file explorer, diffs, and a sandboxed terminal.",
+    description: "Monaco editor, files, AI review with diffs, and sandboxed runs.",
     icon: Code,
     section: "Knowledge",
-    status: "planned",
+    status: "ready",
   },
   {
     id: "automations",

@@ -4,7 +4,7 @@ import { validateSession } from "@/lib/auth/session";
 import { hit } from "@/lib/rate-limit";
 
 // Requests that spend money on the model get a tighter limit than everything else.
-const EXPENSIVE = [/^\/api\/conversations\/[^/]+\/(messages|regenerate)$/, /^\/api\/ai\/(propose|apply)$/, /^\/api\/agent-runs$/];
+const EXPENSIVE = [/^\/api\/conversations\/[^/]+\/(messages|regenerate)$/, /^\/api\/ai\/(propose|apply)$/, /^\/api\/agent-runs$/, /^\/api\/research$/, /^\/api\/compare$/, /^\/api\/code\/(assist|projects\/[^/]+\/run)$/];
 
 /** Per-minute limits can be raised for load tests or automated runs; the defaults suit one person. */
 function limitFromEnv(name: string, fallback: number): number {

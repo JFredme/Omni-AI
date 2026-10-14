@@ -63,8 +63,8 @@ try {
   });
 
   await check("module placeholder page is honest about status", async () => {
-    await desktop.goto(`${baseUrl}/code`);
-    await desktop.getByRole("heading", { name: "Code", level: 1 }).waitFor();
+    await desktop.goto(`${baseUrl}/analytics`);
+    await desktop.getByRole("heading", { name: "Analytics", level: 1 }).waitFor();
     const text = await desktop.locator("main").textContent();
     assert.match(text ?? "", /Not built yet/);
   });

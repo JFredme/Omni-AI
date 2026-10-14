@@ -520,3 +520,26 @@ model ResearchReport {
 
   @@index([createdAt])
 }
+
+/// A folder of source files in the code workspace.
+model CodeProject {
+  id        String     @id @default(cuid())
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  files     CodeFile[]
+
+  @@index([updatedAt])
+}
+
+model CodeFile {
+  id        String      @id @default(cuid())
+  projectId String
+  project   CodeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Relative path inside the project, like "src/main.py".
+  path      String
+  content   String      @default("") @db.Text
+  updatedAt DateTime    @updatedAt
+
+  @@unique([projectId, path])
+}
