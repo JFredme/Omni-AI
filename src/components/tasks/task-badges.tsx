@@ -1,4 +1,4 @@
-import { CalendarDays, FolderKanban, ListChecks } from "lucide-react";
+import { CalendarDays, Flag, FolderKanban, ListChecks } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { dueState, formatDateKey } from "@/lib/dates";
 import { PRIORITY_LABELS, subtaskProgress, type TaskDto, type TaskPriority } from "@/lib/tasks/types";
@@ -38,6 +38,12 @@ export function TaskMeta({ task, today, showProject = true }: { task: TaskDto; t
         <Badge>
           <FolderKanban className="size-3" aria-hidden />
           {task.projectName}
+        </Badge>
+      ) : null}
+      {!showProject && task.milestoneTitle ? (
+        <Badge>
+          <Flag className="size-3" aria-hidden />
+          {task.milestoneTitle}
         </Badge>
       ) : null}
       {progress.total > 0 ? (
