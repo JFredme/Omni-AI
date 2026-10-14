@@ -6,6 +6,8 @@
 //   "slow"   streams many small chunks slowly, so a test can press Stop
 //   "break"  streams partial text, then a mid-stream rate-limit error event
 //   otherwise a short reply with usage (20 in / 8 out, cost 0.000123)
+// Requests whose system prompt asks for "ONE JSON object" (the planning assistant) get a JSON proposal built from
+// the ids found in the prompt, so the app's confirm-then-apply flow runs against real records.
 import { createServer } from "node:http";
 
 export const VALID_KEY = "sk-or-v1-e2e-valid-key-123456";
@@ -108,6 +110,64 @@ async function streamCompletion(response, prompt) {
   response.end("data: [DONE]\n\n");
 }
 
+function allMatches(text, pattern) {
+  return [...text.matchAll(pattern)].map((match) => match[1]);
+}
+
+/** Builds the JSON a well-behaved model would return for each planning request. */
+function structuredReply(system, user) {
+  if (system.includes("Write a practical project plan")) {
+    return {
+      summary: "Start with research, then build.",
+      milestones: [{ title: "Research done", dueDate: "2030-01-15" }],
+      tasks: [
+        { title: "Mock research task", description: "Look into options", priority: "high", milestone: "Research done", subtasks: ["Read docs"] },
+        { title: "Mock build task", priority: "medium", dueDate: "2030-02-01", tags: ["build"] },
+      ],
+    };
+  }
+  if (system.includes("Break the project down")) {
+    return { summary: "Three concrete steps.", tasks: [{ title: "Mock step one", priority: "high" }, { title: "Mock step two" }] };
+  }
+  if (system.includes("Summarize the note faithfully")) {
+    return { summary: "A mock summary of the note.", keyPoints: ["First point", "Second point"], suggestedTags: ["summarized"] };
+  }
+  if (system.includes("Suggest priorities")) {
+    const [first] = allMatches(user, /"taskId":"([^"]+)"/g);
+    return { summary: "One task needs attention.", suggestions: first ? [{ taskId: first, priority: "urgent", reason: "It is the most pressing." }] : [] };
+  }
+  if (system.includes("Organize the tasks")) {
+    const projectId = allMatches(user, /"projectId":"([^"]+)","name"/g)[0];
+    const unassigned = allMatches(user, /\{"taskId":"([^"]+)"[^}]*"projectId":null/g)[0];
+    return {
+      summary: "Filed one task.",
+      suggestions: unassigned && projectId ? [{ taskId: unassigned, projectId, addTags: ["organized"], reason: "Belongs with this project." }] : [],
+    };
+  }
+  if (system.includes("Organize the notes")) {
+    const [first] = allMatches(user, /"noteId":"([^"]+)"/g);
+    return { summary: "Filed one note.", suggestions: first ? [{ noteId: first, folder: "Mock Folder", addTags: ["mocked"], reason: "Fits here." }] : [] };
+  }
+  return { summary: "ok" };
+}
+
+async function streamStructured(response, system, user) {
+  const text = JSON.stringify(structuredReply(system, user));
+  response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
+  response.write(chunk(text.slice(0, Math.floor(text.length / 2))));
+  await sleep(30);
+  response.write(chunk(text.slice(Math.floor(text.length / 2))));
+  response.write(
+    `data: ${JSON.stringify({
+      id: "gen-mock",
+      model: "mock/free-model",
+      choices: [{ index: 0, delta: { content: "" }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 300, completion_tokens: 120, total_tokens: 420, cost: 0.0005 },
+    })}\n\n`,
+  );
+  response.end("data: [DONE]\n\n");
+}
+
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://localhost:${port}`);
 
@@ -140,6 +200,8 @@ const server = createServer(async (request, response) => {
     for await (const part of request) raw += part;
     const body = JSON.parse(raw || "{}");
     const lastUser = [...(body.messages ?? [])].reverse().find((message) => message.role === "user");
+    const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
+    if (system.includes("ONE JSON object")) return streamStructured(response, system, String(lastUser?.content ?? ""));
     const prompt = String(lastUser?.content ?? "").toLowerCase();
     return streamCompletion(response, prompt);
   }
