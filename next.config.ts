@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Hides the small Next.js badge that shows in the corner while developing.
+  devIndicators: false,
   cacheComponents: true,
   experimental: {
     // Uploads go through the sign-in proxy, which buffers request bodies; the default 10 MB would silently cut files short.
