@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f6f2ea" />
+<title>OMNI AI</title>
+<style>
+  :root { --paper: #f6f2ea; --ink: #2b2a26; --muted: #6b675d; --line: #d9d3c4; --green: #285846; }
+  @media (prefers-color-scheme: dark) { :root { --paper: #1c1b18; --ink: #ece8dd; --muted: #a29d8f; --line: #3a382f; --green: #7fc3a3; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; display: grid; place-items: center; padding: 24px; }
+  main { width: 100%; max-width: 420px; }
+  h1 { font: 500 38px/1.1 Georgia, "Times New Roman", serif; margin: 0 0 6px; }
+  p { color: var(--muted); margin: 0 0 20px; }
+  label { display: block; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  input { width: 100%; font: inherit; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); }
+  input:focus { outline: 2px solid var(--green); outline-offset: 1px; }
+  button { margin-top: 14px; width: 100%; font: inherit; font-weight: 600; padding: 12px 14px; border: 0; border-radius: 8px; background: var(--green); color: var(--paper); }
+  .note { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .error { color: #b3261e; font-size: 14px; min-height: 20px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Omni</h1>
+  <p>Connect this app to your OMNI server.</p>
+  <form id="form" novalidate>
+    <label for="url">Server address</label>
+    <input id="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://omni.example.com" required />
+    <div class="error" id="error" role="alert"></div>
+    <button type="submit">Connect</button>
+  </form>
+  <p class="note">Connect only to a server you run yourself. If it can be reached from the internet, turn on sign-in there (<code>OMNI_REQUIRE_LOGIN=1</code>) and use https. Your data stays on that server; this app only shows it.</p>
+</main>
+<script>
+  var KEY = "omni.server";
+  var input = document.getElementById("url");
+  var error = document.getElementById("error");
+
+  function clean(value) {
+    var text = (value || "").trim();
+    if (!text) return "";
+    if (!/^https?:\/\//i.test(text)) text = "https://" + text;
+    try {
+      var parsed = new URL(text);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+      return parsed.origin + parsed.pathname.replace(/\/+$/, "");
+    } catch (e) { return ""; }
+  }
+  function remembered() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
+
+  var wantsChange = /[?&]change=1/.test(location.search);
+  var saved = remembered();
+  if (saved && !wantsChange) { location.replace(saved); }
+  else if (saved) { input.value = saved; }
+
+  document.getElementById("form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var address = clean(input.value);
+    if (!address) { error.textContent = "Enter the address of your server, like https://omni.example.com"; return; }
+    try { localStorage.setItem(KEY, address); } catch (e) {}
+    location.replace(address);
+  });
+</script>
+</body>
+</html>

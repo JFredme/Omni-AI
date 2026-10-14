@@ -1,0 +1,12 @@
+{
+  "appId": "app.omni.mobile",
+  "appName": "OMNI AI",
+  "webDir": "www",
+  "backgroundColor": "#f6f2ea",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["*"],
+    "errorPath": "error.html"
+  }
+}

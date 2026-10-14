@@ -15,6 +15,12 @@ if (process.env.SKIP_BUILD !== "1") {
 }
 if (!existsSync(join(build, "standalone", "server.js"))) throw new Error("No standalone build found. Build with OMNI_DESKTOP_BUILD=1 first.");
 
+// Settings read from the environment must be decided per visit. If this route was built ahead of time, the sign-in setting
+// would be frozen to whatever the build machine had.
+if (existsSync(join(build, "server", "app", "api", "auth", "status.body"))) {
+  throw new Error("/api/auth/status was pre-rendered at build time; it must stay dynamic.");
+}
+
 const app = join(here, "server-bundle");
 rmSync(app, { recursive: true, force: true });
 rmSync(join(here, "migrations"), { recursive: true, force: true });
