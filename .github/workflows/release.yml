@@ -1,0 +1,112 @@
+# Builds the Mac, Windows and Android apps. Pushing a tag like v0.1.0 also publishes them as a GitHub release.
+# You can also run it by hand from the Actions tab: it builds everything and attaches the files to the run, without a release.
+name: Build apps
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The build only needs these to exist. Nothing connects to a database while building.
+  DATABASE_URL: "postgresql://build:build@127.0.0.1:5432/build"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  desktop:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Mac app
+            os: macos-latest
+            files: desktop/dist/*.dmg
+          - name: Windows app
+            os: windows-latest
+            files: desktop/dist/*-setup.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - name: Use the tag as the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm pkg set version="${GITHUB_REF_NAME#v}" --prefix desktop
+      - run: npm ci
+      - run: npm ci
+        working-directory: desktop
+      - name: Build the app
+        run: npm run dist -- --publish never
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-app
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  android:
+    name: Android app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: android/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+        working-directory: android
+      - name: Copy the web files into the Android project
+        run: npx cap sync android
+        working-directory: android
+      - name: Build the APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+        working-directory: android/android
+      - name: Name the file
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then VERSION="dev"; fi
+          cp android/android/app/build/outputs/apk/debug/app-debug.apk "OMNI-AI-${VERSION}-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-app
+          path: OMNI-AI-*-android.apk
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - run: ls -l files
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: OMNI AI ${{ github.ref_name }}
+          body_path: .github/release-notes.md
+          files: files/*

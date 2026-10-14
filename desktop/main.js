@@ -13,6 +13,9 @@ const HOST = "127.0.0.1";
 const DB_NAME = "omni_ai";
 const DB_USER = "omni";
 
+// A fixed, readable data folder (unless a test passes its own with --user-data-dir).
+if (!app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", path.join(app.getPath("appData"), "OMNI AI"));
+
 const packaged = app.isPackaged;
 const appDir = packaged ? path.join(process.resourcesPath, "app-server") : path.join(__dirname, "server-bundle");
 const migrationsDir = packaged ? path.join(process.resourcesPath, "migrations") : path.join(__dirname, "migrations");

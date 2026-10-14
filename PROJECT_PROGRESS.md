@@ -32,6 +32,7 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 | Analytics: `/api/analytics` (tasks per day, median time to finish, priority/project split, scheduled vs focus hours, AI spend by day and model, activity counts; days follow the viewer's time zone) and the `/analytics` page with 7/30/90 day ranges | done |
 | Docker: `Dockerfile`, `docker-compose.yml` (Postgres 16 + app, migrations on start), `.dockerignore`. **Never built or run here (no Docker installed)** | written, unverified |
 | Command bar quick actions (Ask AI prefill, Add task, Add note) and Data Analyst / Automation Agent with `get_analytics`, `list_automations`, `get_automation_runs`, `run_automation` (write, needs approval) | done |
+| Apps: `desktop/` (Electron; embedded PostgreSQL via `embedded-postgres`, standalone Next server, own migration runner, orphan/stale-process recovery), `android/` (Capacitor shell that opens a configured server), `.github/workflows/release.yml` builds all three into a release on a `v*` tag. Mac app built and run locally. **Windows and Android never built or run here** | partly unverified |
 
 ## Not built yet (in roadmap order)
 - **Chat still missing:** tool calling inside a chat (agents cover tools).
