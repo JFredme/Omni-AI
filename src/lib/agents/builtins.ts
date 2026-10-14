@@ -17,14 +17,14 @@ export function approvalFor(tools: string[]): string[] {
   return tools.filter((name) => WRITE_TOOLS.has(name));
 }
 
-const READ = ["current_date", "list_tasks", "list_projects", "get_project", "search_notes", "read_note"];
+const READ = ["current_date", "list_tasks", "list_projects", "get_project", "search_notes", "read_note", "search_knowledge", "search_memory"];
 const TASK_WRITE = ["create_task", "update_task"];
 const NOTE_WRITE = ["create_note", "append_to_note"];
 const PROJECT_WRITE = ["create_project", "add_milestone"];
 
 /**
  * Agents that ship with the app. Only agents whose tools exist today are listed; the research, coding, email,
- * calendar, document, data, and automation agents are added together with the tools they need.
+ * calendar, data, and automation agents are added together with the tools they need.
  */
 export const BUILT_IN_AGENTS: BuiltInAgent[] = [
   {
@@ -33,7 +33,7 @@ export const BUILT_IN_AGENTS: BuiltInAgent[] = [
     description: "Answers questions about your work and handles everyday requests across tasks, notes, and projects.",
     instructions:
       "You are a helpful, concise assistant for the user's personal workspace. Look things up with your tools before answering questions about their data. When asked to change something, make the smallest change that does what they asked. If another agent is clearly better suited to a sub-task, you may delegate it.",
-    tools: [...READ, ...TASK_WRITE, ...NOTE_WRITE, ...PROJECT_WRITE, "delegate"],
+    tools: [...READ, ...TASK_WRITE, ...NOTE_WRITE, ...PROJECT_WRITE, "remember", "delegate"],
     maxSteps: 12,
     maxBudgetUsd: 0.25,
   },
@@ -64,6 +64,16 @@ export const BUILT_IN_AGENTS: BuiltInAgent[] = [
     instructions:
       "You are a careful writing partner. Read the user's existing notes for context, keep their voice, and produce polished Markdown. Save drafts as new notes, or append to an existing note when asked. Never overwrite text the user didn't ask you to change.",
     tools: [...READ, ...NOTE_WRITE],
+    maxSteps: 8,
+    maxBudgetUsd: 0.2,
+  },
+  {
+    key: "document-analyst",
+    name: "Document Analyst",
+    description: "Answers questions from your saved documents and notes, and tells you exactly where each answer came from.",
+    instructions:
+      "You answer questions using the user's saved documents. Always search the knowledge base before answering, and search again with different wording if the first results are thin. Quote or paraphrase only what the passages actually say, name the document (and page when given) for every claim, and say plainly when the documents don't contain the answer. Never fill gaps from memory of the wider world without labeling it as such.",
+    tools: ["current_date", "search_knowledge", "search_notes", "read_note", "search_memory"],
     maxSteps: 8,
     maxBudgetUsd: 0.2,
   },

@@ -13,7 +13,7 @@ const client = new pg.Client({ connectionString: url });
 await client.connect();
 try {
   await client.query(
-    'TRUNCATE TABLE "UsageRecord", "Message", "Conversation", "AppSettings", "Task", "Milestone", "Project", "Note", "NoteFolder", "AgentStep", "AgentRun", "Agent", "AuthConfig", "AuthSession", "AuditLog" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "UsageRecord", "Message", "Conversation", "AppSettings", "Task", "Milestone", "Project", "Note", "NoteFolder", "AgentStep", "AgentRun", "Agent", "AuthConfig", "AuthSession", "AuditLog", "KnowledgeChunk", "KnowledgeDocument", "Memory" RESTART IDENTITY CASCADE',
   );
   console.log(`Cleared test data in "${dbName}".`);
 } finally {

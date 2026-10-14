@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pencil, ScrollText } from "lucide-react";
+import { BookOpen, Pencil, ScrollText } from "lucide-react";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { Composer } from "@/components/chat/composer";
 import { describeError, useModelCatalog } from "@/components/chat/use-model-catalog";
@@ -20,6 +20,32 @@ const SUGGESTIONS = [
   "Draft a polite email declining a meeting, with two alternative times.",
 ];
 
+const KNOWLEDGE_KEY = "omni.chat.useKnowledge";
+
+/** Whether replies may draw on saved documents. Remembered in this browser; on by default. */
+function useKnowledgeToggle(): [boolean, (value: boolean) => void] {
+  const [value, setValue] = useState(true);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable on the client
+      if (window.localStorage.getItem(KNOWLEDGE_KEY) === "off") setValue(false);
+    } catch {
+      // Storage can be blocked; the default stays.
+    }
+  }, []);
+  return [
+    value,
+    (next) => {
+      setValue(next);
+      try {
+        window.localStorage.setItem(KNOWLEDGE_KEY, next ? "on" : "off");
+      } catch {
+        // Not remembered, still applied.
+      }
+    },
+  ];
+}
+
 type ConversationResponse = { conversation: ConversationDetail };
 
 export function ChatWorkspace({ initialId }: { initialId: string | null }) {
@@ -36,6 +62,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   const [systemOpen, setSystemOpen] = useState(false);
   const [systemDraft, setSystemDraft] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const [useKnowledge, setUseKnowledge] = useKnowledgeToggle();
 
   const catalog = useModelCatalog();
   const { settings, models } = catalog;
@@ -128,7 +155,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   function handleTurnEvent(conversationId: string, event: TurnEvent) {
     switch (event.type) {
       case "start":
-        setLive({ text: "", modelId: event.modelId });
+        setLive({ text: "", modelId: event.modelId, citations: event.citations ?? [] });
         if (event.userMessage) {
           const userMessage: MessageDto = event.userMessage;
           setDetail((prev) =>
@@ -177,7 +204,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
       }
 
       const path = `/api/conversations/${conversationId}/${kind === "send" ? "messages" : "regenerate"}`;
-      await streamTurn(path, kind === "send" ? { content } : {}, {
+      await streamTurn(path, kind === "send" ? { content, useKnowledge } : { useKnowledge }, {
         signal: controller.signal,
         onEvent: (event) => handleTurnEvent(conversationId as string, event),
       });
@@ -320,6 +347,20 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
               </>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setUseKnowledge(!useKnowledge)}
+            aria-pressed={useKnowledge}
+            title={useKnowledge ? "Replies can use your saved documents. Click to turn off." : "Replies won't look at your documents. Click to turn on."}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              useKnowledge ? "text-primary" : "text-muted-foreground",
+            )}
+          >
+            <BookOpen className="size-4" aria-hidden />
+            <span className="hidden sm:inline">Knowledge {useKnowledge ? "on" : "off"}</span>
+          </button>
 
           {keyConfigured ? (
             <ModelPicker

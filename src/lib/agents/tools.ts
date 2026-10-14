@@ -9,6 +9,8 @@ import { DUE_FILTERS, TASK_PRIORITIES, TASK_STATUSES, type TaskDto } from "@/lib
 const tasks = () => import("@/lib/tasks/service");
 const notes = () => import("@/lib/notes/service");
 const projects = () => import("@/lib/projects/service");
+const knowledge = () => import("@/lib/knowledge/service");
+const memory = () => import("@/lib/knowledge/memory");
 
 export interface ToolContext {
   runId: string;
@@ -212,6 +214,40 @@ export const TOOLS: ToolDef[] = [
       if (content.length > MAX_NOTE_CONTENT) throw new Error("The note would become too long.");
       await service.updateNote(noteId, { content });
       return { id: noteId, appended: text.length };
+    },
+  }),
+  tool({
+    name: "search_knowledge",
+    description: "Search the user's saved documents and indexed notes. Returns up to 6 passages with the document name and page; cite them by name.",
+    risk: "read",
+    usage: '{ "query": text }',
+    args: z.object({ query: z.string().trim().min(1).max(500) }),
+    run: async ({ query }, context) => {
+      const result = await (await knowledge()).searchKnowledge(query, { k: 6, signal: context.signal });
+      return {
+        mode: result.mode,
+        warning: result.warning,
+        passages: result.hits.map((hit) => ({ document: hit.documentName, page: hit.page, heading: hit.heading, text: hit.content.slice(0, 1_200), match: hit.score })),
+      };
+    },
+  }),
+  tool({
+    name: "search_memory",
+    description: "Search what the user has asked to be remembered about them.",
+    risk: "read",
+    usage: '{ "query": text }',
+    args: z.object({ query: z.string().trim().min(1).max(500) }),
+    run: async ({ query }, context) => ({ memories: (await (await memory()).searchMemories(query, { k: 5, signal: context.signal })).hits.map((hit) => hit.content) }),
+  }),
+  tool({
+    name: "remember",
+    description: "Save one fact or preference about the user to their memory, for use in future conversations.",
+    risk: "write",
+    usage: '{ "content": text }',
+    args: z.object({ content: z.string().trim().min(1).max(500) }),
+    run: async ({ content }) => {
+      const saved = await (await memory()).createMemory({ content, source: "agent" });
+      return { id: saved.id, saved: saved.content };
     },
   }),
   tool({

@@ -16,13 +16,14 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Persistent conversations and messages (PostgreSQL via Prisma) | Done |
 | Usage tracking (tokens, cost, 30-day breakdown), monthly spending limit | Done |
 | Password sign-in, protected pages and API, rate limiting, audit log | Done (see Security) |
-| File attachments, image input, tool calling, JSON mode, branching, memory | Not started |
+| Chat attachments, tool calling, JSON mode, branching | Not started |
+| Knowledge base (PDF, Word, Excel, CSV, Markdown, text, code, images; hybrid search; citations in chat) and memory | Done |
 | Tasks (priorities, due dates, subtasks, tags, search, filters, sorting, Kanban board) | Done (Part 3) |
 | Notes (Markdown, autosave, folders, tags, search, pinning) | Done (Part 3) |
 | Projects (status, milestones, progress dashboards, linked tasks) | Done (Part 3) |
 | AI integration (break a project into tasks, project plans, note summaries, task priorities, organize tasks and notes), always confirm-before-apply | Done (Part 3) |
 | Agents (builder, run engine, tool registry, approvals, limits, cancellation, bounded delegation, run history) | Done (Part 4, first phase) |
-| Calendar, knowledge, research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
+| Calendar, research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
 
 ## Requirements
 
@@ -133,6 +134,18 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Prompt injection.** Tool results and your workspace text go to the model inside `<data>` blocks with instructions to treat them as information, and the agent can only use tools you enabled. The main protection is that consequential actions need approval.
 - **Built-in agents:** General Assistant, Project Manager, Study Assistant, and Writing Agent. They are read-only; duplicate one to customize it. The Research, Coding, Email, Calendar, Document Analyst, Data Analyst, and Automation agents will be added together with the tools they need, rather than shipped without them.
 
+## Knowledge base and memory
+
+**Knowledge** (`/knowledge`) turns your files into something chat and agents can search, and shows where every answer came from.
+
+- **Adding things.** Upload PDF, Word (`.docx`), Excel (`.xlsx`), CSV, Markdown, text, source code, or images (PNG, JPEG, WebP, GIF), paste text, or index your notes. Files up to 15 MB. Only the extracted text is kept; the original file is not stored. Scanned PDFs have no text to extract, so upload their pages as images instead. Image text comes from a model reading the picture, so it can contain mistakes, and the document says so.
+- **How search works.** Text is split into pieces of about 1,000 characters, each remembering its page (PDF) or heading (Markdown). Each piece is turned into a vector with an OpenRouter embedding model (default `openai/text-embedding-3-small`, changeable through `PATCH /api/knowledge/settings`) and stored in PostgreSQL. A question is embedded the same way and compared by cosine similarity, with a small bonus for exact word matches. Anything below a relevance floor is dropped rather than shown as a weak match.
+- **When embeddings aren't available** (no key, a failing model, a spent budget), documents are still saved and found by keyword, and the page tells you why meaning-based search is off. **Re-index** retries.
+- **Scale.** Vectors live in ordinary columns and are compared in the server's memory, which is fine for personal use (tens of thousands of pieces). It is not pgvector; very large libraries would want that.
+- **Citations in chat.** With the **Knowledge** toggle on, each message searches your documents, and the model is given the top passages as numbered sources and told to cite them as `[1]`. The sources are saved with the reply. Sources the reply cites are highlighted; the others are shown as retrieved but not cited. Text inside your documents is passed as data, not instructions, and tags in it are neutralized so it can't close the block it sits in.
+- **Memory** is a list of facts you choose to keep ("I prefer metric units"). Relevant ones are sent along with your message while **Use memories in chat** is on; turn it off and none leave your database. Add them on the Memory tab, or choose **Remember this** under any message you sent. You can edit, search, export as JSON, or delete them all (a confirmation is required).
+- **Agents.** `search_knowledge` and `search_memory` are read tools available to every agent; `remember` writes, so it asks for approval by default. The built-in **Document Analyst** answers from your documents and names the source.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
@@ -148,6 +161,7 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Stored in PostgreSQL:** settings (including the encrypted OpenRouter key, default model, favorites, and monthly limit), conversations, messages, one usage record per reply or AI request, tasks, projects, milestones, notes, note folders, agents, and agent runs with every step's tool input and output.
 - **Stored in the browser:** the theme and sidebar state, in `localStorage`.
 - **Sent to OpenRouter:** the conversation history for each chat request, plus any system instructions you set for that conversation. When you use an AI action, the relevant content is sent: the project's name, description, milestones, and task titles; the text of the note you summarize; titles, descriptions, due dates, and tags of up to 60 open tasks for priorities and organizing; and titles, short excerpts, folders, and tags of up to 60 notes for organizing. Notes are truncated to their first 24,000 characters for summaries. An agent run sends the objective, the agent's instructions, and the results of the tools it calls (task, note, and project content) to the model.
+- **Knowledge and memory:** when you add a document or memory, its text is sent to the OpenRouter embedding model. Each chat message is embedded (when Knowledge or memory is on) and the best-matching passages and memories are sent with it.
 - **Never returned to the browser:** the OpenRouter key. The Settings page shows only its last four characters.
 - Deleting a conversation removes its messages. Its usage records are kept so totals stay accurate.
 - Deleting a task removes its subtasks. Deleting a folder keeps its notes. Deleting a project or milestone keeps its tasks.

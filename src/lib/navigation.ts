@@ -106,10 +106,10 @@ export const navItems: NavItem[] = [
     id: "knowledge",
     href: "/knowledge",
     label: "Knowledge",
-    description: "Upload documents and ask questions with citations.",
+    description: "Upload documents and memories, and ask questions with citations.",
     icon: Library,
     section: "Knowledge",
-    status: "planned",
+    status: "ready",
   },
   {
     id: "code",

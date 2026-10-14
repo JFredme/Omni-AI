@@ -12,3 +12,16 @@ export async function addSession(context) {
 export function sessionHeaders(extra = {}) {
   return { ...(sessionToken ? { Cookie: `omni_session=${sessionToken}` } : {}), ...extra };
 }
+
+/**
+ * fetch that retries once on a dropped connection. Node reuses idle sockets, and the server closes them after a few
+ * seconds, so the first request after a long pause can hit a socket that is already dead.
+ */
+export async function retryingFetch(url, init) {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    if (error?.cause?.code !== "ECONNRESET" && error?.cause?.code !== "UND_ERR_SOCKET") throw error;
+    return fetch(url, init);
+  }
+}

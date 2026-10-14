@@ -47,8 +47,8 @@ try {
 
   await check("dashboard renders greeting and sidebar", async () => {
     await desktop.goto(baseUrl);
-    const greeting = await desktop.locator("h1").first().textContent();
-    assert.match(greeting ?? "", /Good (morning|afternoon|evening|night)/);
+    // The greeting depends on the visitor's local time, so it appears once the page has hydrated.
+    await desktop.getByRole("heading", { level: 1, name: /Good (morning|afternoon|evening|night)/ }).waitFor();
     await desktop.getByRole("complementary", { name: "Sidebar" }).waitFor();
   });
 

@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { ModulePage } from "@/components/module-page";
-import { getNavItem } from "@/lib/navigation";
+import { KnowledgeWorkspace } from "@/components/knowledge/knowledge-workspace";
 
-const item = getNavItem("knowledge");
-
-export const metadata: Metadata = {
-  title: item.label,
-};
+export const metadata: Metadata = { title: "Knowledge" };
 
 export default function Page() {
-  return <ModulePage item={item} />;
+  return <KnowledgeWorkspace />;
 }

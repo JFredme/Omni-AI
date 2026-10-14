@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Check, Copy, Loader2, RotateCcw, Square } from "lucide-react";
+import { AlertTriangle, BookMarked, Check, Copy, Loader2, RotateCcw, Square } from "lucide-react";
 import { Markdown } from "@/components/chat/markdown";
+import { Sources } from "@/components/chat/sources";
+import { apiRequest, ClientApiError } from "@/lib/client/api";
+import type { Citation } from "@/lib/knowledge/types";
 import { formatTokens, formatUsd } from "@/lib/format";
 import type { MessageDto } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
@@ -10,6 +13,7 @@ import { cn } from "@/lib/utils";
 export interface LiveReply {
   text: string;
   modelId: string | null;
+  citations: Citation[];
 }
 
 export function usageSummary(message: MessageDto): string {
@@ -59,6 +63,7 @@ export function Transcript({
             {live.text ? <Markdown>{live.text}</Markdown> : <ThinkingDots />}
             <span className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-foreground align-middle" aria-hidden />
           </div>
+          <Sources citations={live.citations} content={live.text} />
           <div className="flex items-center gap-3 px-1 text-xs text-muted-foreground">
             <span>{live.modelId ?? "Model"} · generating</span>
             <button
@@ -72,6 +77,38 @@ export function Transcript({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function RememberButton({ content }: { content: string }) {
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function remember() {
+    setState("saving");
+    setError(null);
+    try {
+      await apiRequest("/api/memory", { json: { content: content.slice(0, 2000) } });
+      setState("saved");
+    } catch (caught) {
+      setError(caught instanceof ClientApiError ? caught.message : "Couldn't save that.");
+      setState("error");
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+      <button
+        type="button"
+        onClick={() => void remember()}
+        disabled={state === "saving" || state === "saved"}
+        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-foreground disabled:opacity-100"
+      >
+        {state === "saved" ? <Check className="size-3.5" aria-hidden /> : <BookMarked className="size-3.5" aria-hidden />}
+        {state === "saved" ? "Saved to memory" : "Remember this"}
+      </button>
+      {error ? <span role="alert" className="text-danger">{error}</span> : null}
     </div>
   );
 }
@@ -109,10 +146,11 @@ function MessageBubble({
 
   if (isUser) {
     return (
-      <div className="flex justify-end">
+      <div className="group flex flex-col items-end gap-1">
         <div className="max-w-[90%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-primary/15 px-4 py-3 text-[15px] leading-7 md:max-w-[80%]">
           {message.content}
         </div>
+        <RememberButton content={message.content} />
       </div>
     );
   }
@@ -147,6 +185,8 @@ function MessageBubble({
           <p className="mt-2 text-xs text-muted-foreground">Stopped. The partial reply was kept.</p>
         ) : null}
       </div>
+
+      {message.citations?.length ? <Sources citations={message.citations} content={message.content} /> : null}
 
       {!streaming ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">

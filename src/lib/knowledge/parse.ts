@@ -1,17 +1,10 @@
+import { CODE_EXTENSIONS } from "./accepted";
 import { MAX_EXTRACTED_CHARS, type DocumentKind } from "./types";
 import { chunkPages, chunkTable, chunkText, type TextChunk } from "./chunk";
 
 export class ParseError extends Error {}
 
-const CODE_EXTENSIONS = new Set([
-  "js", "jsx", "ts", "tsx", "mjs", "cjs", "py", "rb", "go", "rs", "java", "kt", "swift", "c", "h", "cc", "cpp", "hpp", "cs",
-  "php", "sh", "bash", "zsh", "sql", "html", "css", "scss", "json", "yaml", "yml", "toml", "xml", "lua", "r", "scala", "dart",
-]);
 const IMAGE_TYPES: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
-
-export const ACCEPTED_EXTENSIONS = [
-  "pdf", "docx", "xlsx", "csv", "md", "markdown", "txt", "text", "log", ...CODE_EXTENSIONS, ...Object.keys(IMAGE_TYPES),
-];
 
 export function extensionOf(name: string): string {
   const match = /\.([A-Za-z0-9]+)$/.exec(name.trim());
