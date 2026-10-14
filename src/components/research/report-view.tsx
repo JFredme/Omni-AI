@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink, FileText, Library } from "lucide-react";
 import { Markdown } from "@/components/chat/markdown";
+import { ExportMenu } from "@/components/export-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/states";
@@ -51,7 +52,7 @@ export function SourceList({ sources }: { sources: SourceDto[] }) {
 }
 
 /** A finished (or in-progress) report with citations as links, and ways to keep it. */
-export function ReportBody({ question, report, sources, final }: { question: string; report: string; sources: SourceDto[]; final: boolean }) {
+export function ReportBody({ question, report, sources, final, reportId }: { question: string; report: string; sources: SourceDto[]; final: boolean; reportId?: string }) {
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +101,16 @@ export function ReportBody({ question, report, sources, final }: { question: str
           <Button size="sm" variant="outline" onClick={() => void run(() => apiRequest("/api/knowledge", { json: { name: `Research: ${question}`.slice(0, 200), text: markdown } }), "Added to Knowledge, so chat can use it.")}>
             <Library className="size-3.5" aria-hidden /> Add to Knowledge
           </Button>
+          {reportId ? (
+            <ExportMenu
+              options={[
+                { label: "PDF", href: `/api/research/reports/${reportId}/export?format=pdf` },
+                { label: "Word (.docx)", href: `/api/research/reports/${reportId}/export?format=docx` },
+                { label: "Markdown", href: `/api/research/reports/${reportId}/export?format=md` },
+              ]}
+              align="left"
+            />
+          ) : null}
         </div>
       ) : null}
       {message ? (

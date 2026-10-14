@@ -178,6 +178,15 @@ function agentReply(user) {
 /** Builds the JSON a well-behaved model would return for each planning request. */
 function structuredReply(system, user) {
   if (system.includes("OMNI agent")) return agentReply(user);
+  if (system.includes("You draft documents")) {
+    return { title: "Launch memo", blocks: [{ type: "heading", level: 1, text: "Overview" }, { type: "paragraph", text: "We will launch on **Friday** after a final review." }, { type: "bullets", items: ["Finish testing", "Prepare the announcement"] }, { type: "table", header: ["Owner", "Task"], rows: [["Sam", "Testing"], ["Alex", "Announcement"]] }] };
+  }
+  if (system.includes("You draft slide decks")) {
+    return { title: "Tool library pitch", slides: [{ title: "The problem", bullets: ["Tools sit unused", "Buying is expensive"], notes: "Open with a story." }, { title: "The idea", bullets: ["Share tools across the street"] }] };
+  }
+  if (system.includes("You draft spreadsheets")) {
+    return { title: "Household budget", sheets: [{ name: "Budget", header: ["Category", "Planned"], rows: [["Rent", 1200], ["=SUM(B2:B2)", 5], ["Food", 300]] }] };
+  }
   if (system.includes("careful senior engineer")) {
     const original = /File ([^\n]+):\n([\s\S]*)\n<\/data>/.exec(user);
     const file = original?.[2] ?? "";

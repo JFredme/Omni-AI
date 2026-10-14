@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarDays, Flag, FolderKanban, ListTree, Pencil, Plus, Wand2, Trash2 } from "lucide-react";
 import { ProposalDialog } from "@/components/ai/proposal-dialog";
 import { describeError } from "@/components/chat/use-model-catalog";
+import { ExportMenu } from "@/components/export-menu";
 import { PageHeader } from "@/components/page-header";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { TaskList } from "@/components/tasks/task-list";
@@ -177,6 +178,14 @@ export function ProjectDashboard({ id }: { id: string }) {
               <Wand2 className="size-4" aria-hidden />
               Generate plan
             </Button>
+            <ExportMenu
+              label="Report"
+              options={[
+                { label: "PDF", href: `/api/projects/${project.id}/export?format=pdf` },
+                { label: "Word (.docx)", href: `/api/projects/${project.id}/export?format=docx` },
+                { label: "Markdown", href: `/api/projects/${project.id}/export?format=md` },
+              ]}
+            />
             <Button variant="outline" onClick={() => setEditing(true)}>
               <Pencil className="size-4" aria-hidden />
               Edit

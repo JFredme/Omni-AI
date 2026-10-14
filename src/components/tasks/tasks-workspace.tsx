@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckSquare, Columns3, FilterX, ListTodo, Plus, Search, Wand2 } from "lucide-react";
 import { ProposalDialog } from "@/components/ai/proposal-dialog";
 import { describeError } from "@/components/chat/use-model-catalog";
+import { ExportMenu } from "@/components/export-menu";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
@@ -186,6 +187,12 @@ export function TasksWorkspace() {
               <Wand2 className="size-4" aria-hidden />
               Organize
             </Button>
+            <ExportMenu
+              options={[
+                { label: "Excel (.xlsx)", href: "/api/tasks/export?format=xlsx" },
+                { label: "CSV", href: "/api/tasks/export?format=csv" },
+              ]}
+            />
             <Button variant="primary" onClick={() => setDialog({ task: null })}>
               <Plus className="size-4" aria-hidden />
               New task

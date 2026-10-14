@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ArrowLeft, Pin, PinOff, Wand2, Trash2 } from "lucide-react";
+import { ExportMenu } from "@/components/export-menu";
 import { ProposalDialog, type SummaryChoice } from "@/components/ai/proposal-dialog";
 import { Markdown } from "@/components/chat/markdown";
 import { describeError } from "@/components/chat/use-model-catalog";
@@ -194,6 +195,14 @@ export function NoteEditor({
           <Wand2 className="size-4" aria-hidden />
           Summarize
         </Button>
+        <ExportMenu
+          options={[
+            { label: "PDF", href: `/api/notes/${note.id}/export?format=pdf` },
+            { label: "Word (.docx)", href: `/api/notes/${note.id}/export?format=docx` },
+            { label: "Markdown", href: `/api/notes/${note.id}/export?format=md` },
+            { label: "Plain text", href: `/api/notes/${note.id}/export?format=txt` },
+          ]}
+        />
         {confirmingDelete ? (
           <span className="ml-auto flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Delete this note?</span>

@@ -185,7 +185,7 @@ export function ResearchWorkspace() {
               Searched for: {live.queries.map((query) => `“${query}”`).join(", ")}
             </p>
           ) : null}
-          {live.final?.status === "failed" ? null : <ReportBody question={live.question} report={live.text} sources={live.sources} final={Boolean(live.final)} />}
+          {live.final?.status === "failed" ? null : <ReportBody question={live.question} report={live.text} sources={live.sources} final={Boolean(live.final)} reportId={live.final?.status === "complete" ? live.final.id : undefined} />}
           {live.final && live.final.status !== "complete" ? <p className="text-sm text-muted-foreground">{live.final.status === "stopped" ? "Stopped. What was written so far is saved below." : live.final.error}</p> : null}
         </section>
       ) : null}

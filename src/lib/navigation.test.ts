@@ -15,8 +15,8 @@ describe("navigation registry", () => {
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 
-  it("lists all 13 main navigation destinations", () => {
-    expect(navItems).toHaveLength(13);
+  it("lists all 14 main navigation destinations", () => {
+    expect(navItems).toHaveLength(14);
   });
 
   it("places every non-settings item in exactly one workspace section", () => {
@@ -27,7 +27,7 @@ describe("navigation registry", () => {
 
   it("marks the built sections as ready in this build", () => {
     const ready = navItems.filter((item) => item.status === "ready").map((item) => item.id);
-    expect(ready.sort()).toEqual(["agents", "automations", "calendar", "chat", "code", "home", "knowledge", "notes", "projects", "research", "settings", "tasks"]);
+    expect(ready.sort()).toEqual(["agents", "automations", "calendar", "chat", "code", "documents", "home", "knowledge", "notes", "projects", "research", "settings", "tasks"]);
   });
 
   it("throws for unknown ids", () => {

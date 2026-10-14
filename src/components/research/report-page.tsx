@@ -40,7 +40,7 @@ export function ReportPage({ id }: { id: string }) {
             {report.queries.length ? <p className="text-xs text-muted-foreground">Searched for: {report.queries.map((q) => `“${q}”`).join(", ")}</p> : null}
             {report.error ? <p className="text-sm text-warning">{report.error}</p> : null}
           </header>
-          <ReportBody question={report.question} report={report.report} sources={report.sources} final />
+          <ReportBody question={report.question} report={report.report} sources={report.sources} final reportId={report.id} />
         </>
       ) : null}
     </div>
