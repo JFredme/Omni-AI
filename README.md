@@ -9,7 +9,7 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 
 | Area | Status |
 | --- | --- |
-| App shell, routing for all 14 sections, themes, command palette, shortcuts | Done (Part 1) |
+| App shell, routing for all 15 sections, themes, command palette, shortcuts | Done (Part 1) |
 | OpenRouter API key settings (encrypted at rest, environment fallback, connection test) | Done |
 | Model catalog (live from OpenRouter, cached, search, free/paid and capability filters, favorites, default model) | Done |
 | Streaming chat (stop, regenerate, retry, model switching, system instructions, rename, delete) | Done |
@@ -27,6 +27,7 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Calendar: month/week/agenda views, repeating events, tasks and milestones overlay, .ics import/export, AI time blocking | Done (Google Calendar sync needs OAuth; see Calendar) |
 | Automations: visual step flows, schedule/event/webhook triggers, run history | Done |
 | Research: web search provider, page reading, cited reports | Done (needs a search provider key) |
+| Integrations: GitHub, Notion, Todoist, Slack, Discord, Google (Gmail, Calendar, Drive) with confirmations, agent tools, and an automation step | Done, **not tested against the live services** (see Integrations) |
 | Documents: draft documents, slides and spreadsheets with AI; export to PDF, Word, PowerPoint, Excel, Markdown, text, CSV; exports from notes, tasks, projects and research | Done |
 | Code workspace: Monaco editor, projects and files, AI explain/review/edit/tests with diffs, Docker-sandboxed Run | Done (Run needs Docker; not verified here) |
 | Analytics | Not started (routes show a "Not built yet" page) |
@@ -150,6 +151,25 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Persistence and recovery.** Runs, steps, and costs are stored in PostgreSQL. A run that was working when the server stopped resumes on the next visit. A tool that was mid-flight is never repeated: the agent is told it may or may not have completed. Runs waiting for approval stay paused.
 - **Prompt injection.** Tool results and your workspace text go to the model inside `<data>` blocks with instructions to treat them as information, and the agent can only use tools you enabled. The main protection is that consequential actions need approval.
 - **Built-in agents:** General Assistant, Project Manager, Study Assistant, and Writing Agent. They are read-only; duplicate one to customize it. The Research, Coding, Email, Calendar, Document Analyst, Data Analyst, and Automation agents will be added together with the tools they need, rather than shipped without them.
+
+## Integrations
+
+The **Integrations** page connects other services. A connection is only shown as connected after the service itself accepts the credential, credentials are stored encrypted (AES-256-GCM with your `ENCRYPTION_KEY`) and never returned to the browser, and disconnecting deletes them.
+
+| Service | How you connect | What Omni can do |
+| --- | --- | --- |
+| GitHub | Personal access token | List your repositories and issues; open an issue; comment |
+| Notion | Internal integration secret | Search pages; create a page under one you've shared |
+| Todoist | API token | List tasks; add a task; complete a task |
+| Slack | Incoming webhook address | Post a message (Slack can't check a webhook without posting, so it's shown as *not verified* until you send one) |
+| Discord | Webhook address | Post a message (checked with a harmless read when you connect) |
+| Google | Sign in with Google (OAuth, PKCE) | List recent email (sender, subject, preview, never the body); save an email **draft** (never send); list and import calendar events; search Drive; add a Google Doc or text file to Knowledge |
+
+- **Anything that changes something outside Omni asks first.** On the page, writing shows a dialog with exactly what will be sent and waits for your click, and the server refuses a write that wasn't confirmed. For agents, every write is a tool that pauses for your approval by default. **There is no tool or button that sends email or runs code**; the Email Agent can only leave drafts in Gmail for you to read and send. Messages posted to Slack have `<`, `>`, `&` escaped so they can't ping `@channel`, and Discord messages can't mention anyone.
+- **Read results are untrusted.** Email, issues, and pages are written by other people; they're given to agents labelled as information, never as instructions. Gmail messages are read as metadata only.
+- **Automations** can use any action through the *Use a connected service* step. That is a standing instruction you wrote and switched on, so it runs unattended; the editor says so on every write action.
+- **Google needs an OAuth client that only you can create** (Google requires an app you control). Create an *OAuth client ID* (type *Web application*) in the Google Cloud console, enable the Gmail, Calendar, and Drive APIs, add the redirect address the Integrations page shows you, and put the client ID and secret in `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (and `OMNI_PUBLIC_URL` if the app is reached at a different address than the one in your browser). You choose at connect time between *read only* and *read plus email drafts*. Tokens are refreshed automatically.
+- **What was and wasn't tested.** I had no accounts or credentials for any of these services. Everything is tested against stand-in servers that follow each service's documented request format, including the whole Google sign-in (PKCE, one-time state, token exchange and refresh) and every write confirmation. None of it has talked to the real GitHub, Notion, Todoist, Slack, Discord, or Google, so a difference between the documentation and the live service could still show up on first use; errors are reported in plain words when it does. Todoist's REST address is configurable (`TODOIST_API_URL`) in case Todoist moves it.
 
 ## Documents
 

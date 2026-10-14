@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
+import { ACTIONS, PROVIDER_INFO, actionById } from "@/lib/integrations/catalog";
 import { CONDITION_OPERATORS, EVENT_RANGES, HTTP_METHODS, TASK_FILTERS, TRIGGER_INFO, type Step, type Trigger } from "@/lib/automations/types";
 
 const FILTER_LABELS: Record<(typeof TASK_FILTERS)[number], string> = {
@@ -212,6 +213,30 @@ export function StepForm({ step, index, trigger, steps, onChange, zone }: { step
           </label>
         </div>
       );
+    case "integration": {
+      const action = actionById(step.action) ?? ACTIONS[0];
+      return (
+        <div className="space-y-3">
+          <Field label="Action" htmlFor={id("action")} hint={action.description}>
+            <Select id={id("action")} value={action.id} onChange={(e) => onChange({ ...step, action: e.target.value, params: {} })}>
+              {Object.values(PROVIDER_INFO).map((provider) => (
+                <optgroup key={provider.id} label={provider.label}>
+                  {ACTIONS.filter((candidate) => candidate.provider === provider.id).map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {candidate.label}{candidate.risk === "write" ? " (changes something)" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </Field>
+          {action.fields.map((field) => (
+            <TemplateField key={field.name} label={field.label} id={id(`p-${field.name}`)} value={step.params[field.name] ?? ""} onChange={(value) => onChange({ ...step, params: { ...step.params, [field.name]: value } })} placeholders={placeholders} multiline={field.kind === "textarea"} rows={3} hint={field.hint} />
+          ))}
+          {action.risk === "write" ? <p className="text-xs text-warning">Every time this automation runs, this acts on {PROVIDER_INFO[action.provider].label} for real. Connect the service first on the Integrations page.</p> : null}
+        </div>
+      );
+    }
     case "condition":
       return (
         <div className="space-y-3">

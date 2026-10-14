@@ -1,4 +1,5 @@
 import { z, type ZodType } from "zod";
+import { INTEGRATION_TOOLS } from "./integration-tools";
 import { addDays, dateKeySchema, localDateKey } from "@/lib/dates";
 import { MAX_NOTE_CONTENT } from "@/lib/notes/schemas";
 import { tagsSchema } from "@/lib/tags";
@@ -380,6 +381,7 @@ export const TOOLS: ToolDef[] = [
       return { answer: await context.delegate(agent, objective) };
     },
   }),
+  ...INTEGRATION_TOOLS,
 ];
 
 const byName = new Map(TOOLS.map((definition) => [definition.name, definition]));

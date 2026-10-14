@@ -69,6 +69,8 @@ export function blankStep(type: Step["type"], timezone: string): Step {
       return { id, type, title: "", day: "today", time: "09:00", durationMinutes: 30, timezone };
     case "http_request":
       return { id, type, method: "POST", url: "https://", headers: [], body: "", failOnError: true };
+    case "integration":
+      return { id, type, action: "slack.post_message", params: {} };
     case "condition":
       return { id, type, value: "", operator: "contains", compare: "" };
   }

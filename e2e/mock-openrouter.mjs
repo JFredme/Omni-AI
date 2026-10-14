@@ -9,6 +9,7 @@
 // Requests whose system prompt asks for "ONE JSON object" (the planning assistant) get a JSON proposal built from
 // the ids found in the prompt, so the app's confirm-then-apply flow runs against real records.
 import { createServer } from "node:http";
+import { handleServices } from "./mock-services.mjs";
 
 export const VALID_KEY = "sk-or-v1-e2e-valid-key-123456";
 const port = Number(process.env.MOCK_PORT ?? 4010);
@@ -270,6 +271,7 @@ async function streamStructured(response, system, user) {
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://localhost:${port}`);
+  if (await handleServices(request, response, url)) return;
 
   if (request.method === "GET" && url.pathname === "/api/v1/models") {
     return json(response, 200, { data: models, total_count: models.length, links: { next: null } });

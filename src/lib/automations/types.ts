@@ -18,7 +18,7 @@ export const TRIGGER_INFO: Record<TriggerType, { label: string; description: str
   webhook: { label: "When a web address is called", description: "Gives you a private URL. Anything that can send a web request can start this automation.", fields: ["body", "(any field of the JSON you send)"] },
 };
 
-export const STEP_TYPES = ["fetch_tasks", "fetch_events", "ai_prompt", "create_task", "create_note", "create_event", "http_request", "condition"] as const;
+export const STEP_TYPES = ["fetch_tasks", "fetch_events", "ai_prompt", "create_task", "create_note", "create_event", "http_request", "integration", "condition"] as const;
 export type StepType = (typeof STEP_TYPES)[number];
 
 export const TASK_FILTERS = ["due_today", "overdue", "due_this_week", "open", "high_priority"] as const;
@@ -35,6 +35,7 @@ export type Step =
   | (Base & { type: "create_note"; title: string; content: string })
   | (Base & { type: "create_event"; title: string; day: "today" | "tomorrow"; time: string; durationMinutes: number; timezone: string })
   | (Base & { type: "http_request"; method: (typeof HTTP_METHODS)[number]; url: string; headers: { name: string; value: string }[]; body: string; failOnError: boolean })
+  | (Base & { type: "integration"; action: string; params: Record<string, string> })
   | (Base & { type: "condition"; value: string; operator: (typeof CONDITION_OPERATORS)[number]; compare: string });
 
 export const STEP_INFO: Record<StepType, { label: string; description: string; kind: "read" | "write" | "ai" | "external" | "logic" }> = {
@@ -45,6 +46,7 @@ export const STEP_INFO: Record<StepType, { label: string; description: string; k
   create_note: { label: "Create a note", description: "Adds a Markdown note.", kind: "write" },
   create_event: { label: "Add a calendar event", description: "Adds an event today or tomorrow.", kind: "write" },
   http_request: { label: "Call a web address", description: "Sends a request to another service. Addresses on your own network are blocked.", kind: "external" },
+  integration: { label: "Use a connected service", description: "Runs an action on GitHub, Notion, Todoist, Slack, Discord, or Google, using what you connected in Integrations.", kind: "external" },
   condition: { label: "Only continue if…", description: "Stops the automation quietly unless a condition is true.", kind: "logic" },
 };
 

@@ -8,6 +8,7 @@ import { createNote } from "@/lib/notes/service";
 import { normalizeTags } from "@/lib/tags";
 import { createTask, listTasks } from "@/lib/tasks/service";
 import { assertPublicUrl, BlockedUrlError } from "./ssrf";
+import { runIntegrationAction } from "@/lib/integrations/actions";
 import { renderTemplate, type TemplateContext } from "./template";
 import type { Step } from "./types";
 
@@ -143,6 +144,11 @@ export async function executeStep(step: Step, context: TemplateContext, signal: 
     }
     case "http_request":
       return httpStep(step, context, signal);
+    case "integration": {
+      const params = Object.fromEntries(Object.entries(step.params).map(([name, value]) => [name, renderTemplate(value, context)]));
+      const output = await runIntegrationAction(step.action, params, signal);
+      return { input: { action: step.action, params }, output };
+    }
     case "condition": {
       const result = evaluateCondition(step, context);
       return { input: { value: result.value, operator: step.operator, compare: result.compare }, output: result.passed, stop: !result.passed };

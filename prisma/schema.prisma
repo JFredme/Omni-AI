@@ -543,3 +543,29 @@ model CodeFile {
 
   @@unique([projectId, path])
 }
+
+/// A connection to an outside service. Credentials are encrypted with ENCRYPTION_KEY and never sent back to the browser.
+model Integration {
+  provider             String    @id
+  /// Who or what we're connected as, read from the service itself (a GitHub login, a Google email, a workspace name).
+  account              String?
+  encryptedCredentials String    @db.Text
+  scopes               String[]  @default([])
+  /// For OAuth: when the access token expires.
+  expiresAt            DateTime?
+  lastUsedAt           DateTime?
+  lastError            String?   @db.Text
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+/// A sign-in-with-Google attempt in progress. The row is deleted when it's used, and ignored after ten minutes.
+model OAuthState {
+  state     String   @id
+  provider  String
+  verifier  String
+  scopeSet  String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -1,5 +1,5 @@
 // Runs the end-to-end suite: mock OpenRouter, a fresh e2e database, a production build of the app,
-// then the browser tests (e2e/auth.mjs, e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, e2e/agents.mjs, e2e/knowledge.mjs, e2e/chat-extras.mjs, e2e/calendar.mjs, e2e/automations.mjs, e2e/research.mjs, e2e/code.mjs, and e2e/documents.mjs). Requires Google Chrome installed.
+// then the browser tests (e2e/auth.mjs, e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, e2e/agents.mjs, e2e/knowledge.mjs, e2e/chat-extras.mjs, e2e/calendar.mjs, e2e/automations.mjs, e2e/research.mjs, e2e/code.mjs, e2e/documents.mjs, and e2e/integrations.mjs). Requires Google Chrome installed.
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -18,6 +18,19 @@ const env = {
   MOCK_PORT: String(MOCK_PORT),
   OMNI_BASE_URL: baseUrl,
   // The suites share one session and run fast, so the per-minute limits are raised. They are covered by unit tests.
+  // Outside services are stood in for by the mock server, so every integration is tested without a real account.
+  GITHUB_API_URL: `http://localhost:${MOCK_PORT}/github`,
+  NOTION_API_URL: `http://localhost:${MOCK_PORT}/notion`,
+  TODOIST_API_URL: `http://localhost:${MOCK_PORT}/todoist/rest/v2`,
+  INTEGRATION_EXTRA_WEBHOOK_PREFIX: `http://localhost:${MOCK_PORT}/hooks/`,
+  GOOGLE_CLIENT_ID: "e2e-google-client",
+  GOOGLE_CLIENT_SECRET: "e2e-google-secret",
+  GOOGLE_AUTH_URL: `http://localhost:${MOCK_PORT}/google/auth`,
+  GOOGLE_TOKEN_URL: `http://localhost:${MOCK_PORT}/google/token`,
+  GOOGLE_USERINFO_URL: `http://localhost:${MOCK_PORT}/google/userinfo`,
+  GMAIL_API_URL: `http://localhost:${MOCK_PORT}/google/gmail`,
+  GCAL_API_URL: `http://localhost:${MOCK_PORT}/google/calendar`,
+  GDRIVE_API_URL: `http://localhost:${MOCK_PORT}/google/drive`,
   // Research fetches pages from the mock server on this machine, which is normally blocked.
   RESEARCH_ALLOW_PRIVATE_HOSTS: "1",
   OMNI_AI_RATE_LIMIT: "2000",
@@ -99,6 +112,7 @@ try {
   runOrFail("node", ["e2e/research.mjs"]);
   runOrFail("node", ["e2e/code.mjs"]);
   runOrFail("node", ["e2e/documents.mjs"]);
+  runOrFail("node", ["e2e/integrations.mjs"]);
   console.log("\nAll end-to-end suites passed.");
 } finally {
   stopAll();

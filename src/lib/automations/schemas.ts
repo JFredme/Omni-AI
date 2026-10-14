@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidTimeZone } from "@/lib/calendar/tz";
+import { actionById } from "@/lib/integrations/catalog";
 import { MIN_INTERVAL_MINUTES } from "./schedule";
 import { CONDITION_OPERATORS, EVENT_RANGES, HTTP_METHODS, MAX_STEPS, TASK_FILTERS } from "./types";
 
@@ -56,6 +57,12 @@ export const stepSchema = z.discriminatedUnion("type", [
     headers: z.array(z.object({ name: text(100).regex(/^[A-Za-z0-9-]+$/, "header names use letters, numbers, and dashes"), value: text(1_000) })).max(8).default([]),
     body: text(20_000).default(""),
     failOnError: z.boolean().default(true),
+  }),
+  z.object({
+    id,
+    type: z.literal("integration"),
+    action: z.string().max(60).refine((value) => actionById(value) !== undefined, { message: "is not a known action" }),
+    params: z.record(z.string().max(60), z.string().max(20_000)).default({}),
   }),
   z.object({ id, type: z.literal("condition"), value: text(2_000), operator: z.enum(CONDITION_OPERATORS), compare: text(1_000).default("") }),
 ]);

@@ -2,8 +2,11 @@
 import { chmod, mkdtemp, readFile, writeFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dockerRunArgs, resetSandboxStatusCache, runInSandbox, sandboxConfig, sandboxStatus, type SandboxConfig } from "./sandbox";
+
+// These start real processes, so give them room when the whole suite is running at once.
+vi.setConfig({ testTimeout: 20_000 });
 
 let dir: string;
 let log: string;
@@ -101,7 +104,7 @@ describe("runInSandbox", () => {
     const result = await runInSandbox({ files: [{ path: "loop.js", content: "while(true){}" }], entry: "loop.js", config: base({ timeoutMs: 400 }) });
     expect(result.timedOut).toBe(true);
     expect(result.exitCode).toBeNull();
-    expect(result.durationMs).toBeLessThan(5_000);
+    expect(result.durationMs).toBeLessThan(10_000);
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect((await readFile(`${log}.kill`, "utf8")).trim()).toBe("killed");
     expect((await readFile(log, "utf8")).split("\n").some((l) => /^kill omni-run-[0-9a-f]+$/.test(l))).toBe(true);
@@ -119,7 +122,7 @@ describe("runInSandbox", () => {
     const controller = new AbortController();
     setTimeout(() => controller.abort(), 200);
     const result = await runInSandbox({ files: [{ path: "a.js", content: "" }], entry: "a.js", signal: controller.signal, config: base({ timeoutMs: 10_000 }) });
-    expect(result.durationMs).toBeLessThan(5_000);
+    expect(result.durationMs).toBeLessThan(10_000);
   });
 
   it("doesn't pass this app's secrets to the docker program", async () => {

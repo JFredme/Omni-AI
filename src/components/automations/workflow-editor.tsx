@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, Check, Copy, Filter, FileText, Globe, ListPlus, Loader2, CalendarPlus, Play, Plus, Search, Trash2, Wand2, Zap } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Copy, Filter, FileText, Globe, ListPlus, Loader2, CalendarPlus, Play, Plug, Plus, Search, Trash2, Wand2, Zap } from "lucide-react";
 import { RunDetails, RunStatusIcon, RUN_LABELS } from "@/components/automations/run-details";
 import { StepForm } from "@/components/automations/step-forms";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ const STEP_ICONS: Record<StepType, typeof Zap> = {
   create_note: FileText,
   create_event: CalendarPlus,
   http_request: Globe,
+  integration: Plug,
   condition: Filter,
 };
 
