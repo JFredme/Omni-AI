@@ -6,6 +6,8 @@ import { OpenRouterError, userMessageFor } from "@/lib/openrouter/errors";
 import { estimateCostUsd } from "@/lib/openrouter/models";
 import { requireApiKey } from "@/lib/settings";
 import { assertWithinBudget } from "@/lib/usage";
+import { retrieveContext } from "@/lib/knowledge/context";
+import type { Citation } from "@/lib/knowledge/types";
 import {
   buildRequestMessages,
   DEFAULT_CONVERSATION_TITLE,
@@ -34,6 +36,7 @@ type MessageRow = {
   content: string;
   status: MessageStatus;
   error: string | null;
+  citations?: unknown;
   modelId: string | null;
   createdAt: Date;
   usage: {
@@ -53,6 +56,7 @@ function serializeMessage(row: MessageRow): MessageDto {
     status: row.status,
     error: row.error,
     modelId: row.modelId,
+    citations: Array.isArray(row.citations) ? (row.citations as unknown as Citation[]) : null,
     createdAt: row.createdAt.toISOString(),
     usage: row.usage
       ? {
@@ -180,6 +184,7 @@ export interface TurnPlan {
   requestMessages: RequestMessage[];
   assistantMessageId: string;
   userMessage: MessageDto | null;
+  citations: Citation[];
 }
 
 async function resolveModelId(conversationModelId: string | null, requested: string | undefined): Promise<string> {
@@ -209,7 +214,8 @@ async function loadRequestHistory(conversationId: string): Promise<ChatMessageIn
 
 export async function prepareSend(
   conversationId: string,
-  input: { content: string; modelId?: string },
+  input: { content: string; modelId?: string; useKnowledge?: boolean },
+  signal?: AbortSignal,
 ): Promise<TurnPlan> {
   const content = input.content.trim();
   if (!content) throw new ApiError(400, "empty_message", "Type a message before sending.");
@@ -224,8 +230,9 @@ export async function prepareSend(
   await assertWithinBudget();
 
   const history = await loadRequestHistory(conversationId);
+  const context = await retrieveContext(content, { useKnowledge: input.useKnowledge ?? false, signal });
   const requestMessages = buildRequestMessages({
-    systemPrompt: conversation.systemPrompt,
+    systemPrompt: [conversation.systemPrompt, context.prompt].filter(Boolean).join("\n\n") || null,
     history: [...history, { role: "user", content, status: "complete" }],
   });
 
@@ -235,7 +242,14 @@ export async function prepareSend(
       include: messageInclude,
     });
     const assistantRow = await tx.message.create({
-      data: { conversationId, role: "assistant", content: "", modelId, status: "streaming" },
+      data: {
+        conversationId,
+        role: "assistant",
+        content: "",
+        modelId,
+        status: "streaming",
+        ...(context.citations.length ? { citations: context.citations as unknown as object } : {}),
+      },
     });
     await tx.conversation.update({
       where: { id: conversationId },
@@ -254,10 +268,11 @@ export async function prepareSend(
     requestMessages,
     assistantMessageId: assistant.id,
     userMessage: serializeMessage({ ...user, usage: null }),
+    citations: context.citations,
   };
 }
 
-export async function prepareRegenerate(conversationId: string, input: { modelId?: string }): Promise<TurnPlan> {
+export async function prepareRegenerate(conversationId: string, input: { modelId?: string; useKnowledge?: boolean }, signal?: AbortSignal): Promise<TurnPlan> {
   const conversation = await ensureConversation(conversationId);
   await assertIdle(conversationId);
   const { key } = await requireApiKey();
@@ -279,8 +294,9 @@ export async function prepareRegenerate(conversationId: string, input: { modelId
   const modelId = await resolveModelId(conversation.modelId, input.modelId);
   await assertWithinBudget();
 
+  const context = await retrieveContext(history.at(-1)!.content, { useKnowledge: input.useKnowledge ?? false, signal });
   const requestMessages = buildRequestMessages({
-    systemPrompt: conversation.systemPrompt,
+    systemPrompt: [conversation.systemPrompt, context.prompt].filter(Boolean).join("\n\n") || null,
     history: history.map((message) => ({
       role: message.role as "user" | "assistant",
       content: message.content,
@@ -294,7 +310,14 @@ export async function prepareRegenerate(conversationId: string, input: { modelId
     }
     await tx.conversation.update({ where: { id: conversationId }, data: { modelId } });
     return tx.message.create({
-      data: { conversationId, role: "assistant", content: "", modelId, status: "streaming" },
+      data: {
+        conversationId,
+        role: "assistant",
+        content: "",
+        modelId,
+        status: "streaming",
+        ...(context.citations.length ? { citations: context.citations as unknown as object } : {}),
+      },
     });
   });
 
@@ -305,6 +328,7 @@ export async function prepareRegenerate(conversationId: string, input: { modelId
     requestMessages,
     assistantMessageId: assistant.id,
     userMessage: null,
+    citations: context.citations,
   };
 }
 
@@ -383,6 +407,7 @@ export async function* runTurn(plan: TurnPlan, signal: AbortSignal): AsyncGenera
     userMessage: plan.userMessage,
     assistantMessageId: plan.assistantMessageId,
     modelId: plan.modelId,
+    citations: plan.citations,
   };
 
   let text = "";

@@ -41,6 +41,10 @@ model AppSettings {
   defaultModelId   String?
   favoriteModelIds String[]  @default([])
   monthlyBudgetUsd Float?
+  /// Model used to embed documents and memories. Null means the built-in default.
+  embeddingModelId String?
+  /// Whether saved memories are offered to the model in chat.
+  memoryEnabled    Boolean   @default(true)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -67,6 +71,8 @@ model Message {
   modelId        String?
   status         MessageStatus @default(complete)
   error          String?       @db.Text
+  /// Sources and memories retrieved for this reply: [{ n, kind, documentId, name, page, heading, snippet, score }]
+  citations      Json?
   createdAt      DateTime      @default(now())
   usage          UsageRecord?
 
@@ -301,6 +307,64 @@ model AuditLog {
   action    String
   detail    String?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+enum KnowledgeStatus {
+  processing
+  ready
+  failed
+}
+
+/// A file, note, or pasted text that has been split into searchable chunks.
+model KnowledgeDocument {
+  id              String          @id @default(cuid())
+  name            String
+  kind            String
+  sourceType      String          @default("file")
+  sourceId        String?
+  mimeType        String?
+  sizeBytes       Int             @default(0)
+  status          KnowledgeStatus @default(processing)
+  error           String?         @db.Text
+  chunkCount      Int             @default(0)
+  embeddedCount   Int             @default(0)
+  embeddingModel  String?
+  tags            String[]        @default([])
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  chunks          KnowledgeChunk[]
+
+  @@unique([sourceType, sourceId])
+  @@index([createdAt])
+}
+
+model KnowledgeChunk {
+  id             String            @id @default(cuid())
+  documentId     String
+  document       KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  index          Int
+  content        String            @db.Text
+  heading        String?
+  page           Int?
+  /// Unit-length float32 vector, little-endian. Null until embedded.
+  embedding      Bytes?
+  embeddingModel String?
+
+  @@index([documentId, index])
+}
+
+/// Something the user wants the assistant to remember.
+model Memory {
+  id             String   @id @default(cuid())
+  content        String   @db.Text
+  source         String   @default("user")
+  embedding      Bytes?
+  embeddingModel String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([createdAt])
 }

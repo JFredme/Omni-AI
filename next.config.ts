@@ -3,6 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
+  experimental: {
+    // Uploads go through the sign-in proxy, which buffers request bodies; the default 10 MB would silently cut files short.
+    proxyClientMaxBodySize: "20mb",
+  },
   partialPrefetching: true,
   async headers() {
     return [

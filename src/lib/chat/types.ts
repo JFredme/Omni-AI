@@ -1,3 +1,5 @@
+import type { Citation } from "@/lib/knowledge/types";
+
 export type MessageRole = "system" | "user" | "assistant";
 export type MessageStatus = "streaming" | "complete" | "stopped" | "error";
 export type CostSource = "openrouter" | "estimated" | "unknown";
@@ -17,6 +19,8 @@ export interface MessageDto {
   status: MessageStatus;
   error: string | null;
   modelId: string | null;
+  /** Sources and memories the model was given for this reply. */
+  citations: Citation[] | null;
   createdAt: string;
   usage: MessageUsage | null;
 }
@@ -42,7 +46,7 @@ export interface ConversationDetail extends ConversationSummary {
 }
 
 export type TurnEvent =
-  | { type: "start"; userMessage: MessageDto | null; assistantMessageId: string; modelId: string }
+  | { type: "start"; userMessage: MessageDto | null; assistantMessageId: string; modelId: string; citations: Citation[] }
   | { type: "delta"; text: string }
   | { type: "done"; message: MessageDto }
   | { type: "stopped"; message: MessageDto }

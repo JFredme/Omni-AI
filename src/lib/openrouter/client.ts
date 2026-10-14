@@ -25,9 +25,11 @@ export type StreamEvent =
   | { type: "usage"; usage: UsageInfo }
   | { type: "finish"; reason: string | null };
 
+export type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+
 export interface ChatRequestBody {
   model: string;
-  messages: { role: "system" | "user" | "assistant"; content: string }[];
+  messages: { role: "system" | "user" | "assistant"; content: string | ContentPart[] }[];
   temperature?: number;
 }
 
@@ -43,7 +45,7 @@ export interface KeyInfo {
   expiresAt: string | null;
 }
 
-function headersFor(apiKey: string | null, json: boolean): Record<string, string> {
+export function headersFor(apiKey: string | null, json: boolean): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/json",
     "X-OpenRouter-Title": APP_TITLE,
@@ -58,7 +60,7 @@ function retryAfterSeconds(response: Response): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-async function errorFromResponse(response: Response): Promise<OpenRouterError> {
+export async function errorFromResponse(response: Response): Promise<OpenRouterError> {
   let body: unknown = null;
   try {
     body = await response.json();
@@ -95,7 +97,7 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-function networkError(error: unknown, timedOut: boolean): OpenRouterError {
+export function networkError(error: unknown, timedOut: boolean): OpenRouterError {
   if (timedOut) {
     return new OpenRouterError("The request to OpenRouter timed out.", { kind: "timeout" });
   }
@@ -315,5 +317,58 @@ export async function* streamChatCompletion(params: {
       }
     }
     controller.abort();
+  }
+}
+
+
+export interface EmbeddingResult {
+  vectors: number[][];
+  usage: UsageInfo;
+}
+
+/** Turns each input text into a vector. Throws OpenRouterError for upstream failures. */
+export async function createEmbeddings(params: {
+  apiKey: string;
+  model: string;
+  input: string[];
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}): Promise<EmbeddingResult> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, params.timeoutMs ?? 60_000);
+  const onCallerAbort = () => controller.abort();
+  params.signal?.addEventListener("abort", onCallerAbort, { once: true });
+
+  try {
+    const response = await fetch(`${getOpenRouterBaseUrl()}/embeddings`, {
+      method: "POST",
+      headers: headersFor(params.apiKey, true),
+      body: JSON.stringify({ model: params.model, input: params.input, encoding_format: "float" }),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw await errorFromResponse(response);
+    const payload = (await response.json()) as { data?: { index?: number; embedding?: unknown }[]; usage?: Record<string, unknown> };
+    if (!Array.isArray(payload.data) || payload.data.length !== params.input.length) {
+      throw new OpenRouterError("The embedding model returned an unexpected response.", { kind: "provider_error" });
+    }
+    const ordered = [...payload.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    const vectors = ordered.map((entry) => {
+      if (!Array.isArray(entry.embedding) || entry.embedding.length === 0 || !entry.embedding.every((n) => typeof n === "number" && Number.isFinite(n))) {
+        throw new OpenRouterError("The embedding model returned an invalid vector.", { kind: "provider_error" });
+      }
+      return entry.embedding as number[];
+    });
+    return { vectors, usage: usageFrom(payload.usage ?? {}) };
+  } catch (error) {
+    if (error instanceof OpenRouterError) throw error;
+    if (params.signal?.aborted) throw error;
+    throw networkError(error, timedOut);
+  } finally {
+    clearTimeout(timer);
+    params.signal?.removeEventListener("abort", onCallerAbort);
   }
 }

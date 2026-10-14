@@ -6,6 +6,7 @@ import { turnStreamResponse } from "@/lib/chat/stream";
 const sendSchema = z.object({
   content: z.string().max(MAX_USER_MESSAGE_CHARS * 2),
   modelId: z.string().trim().min(1).max(200).optional(),
+  useKnowledge: z.boolean().optional(),
 });
 
 type Context = { params: Promise<{ id: string }> };
@@ -14,7 +15,7 @@ export async function POST(request: Request, { params }: Context) {
   try {
     const { id } = await params;
     const input = await readBody(request, sendSchema);
-    const plan = await prepareSend(id, input);
+    const plan = await prepareSend(id, input, request.signal);
     return turnStreamResponse(plan, request.signal);
   } catch (error) {
     return errorResponse(error);

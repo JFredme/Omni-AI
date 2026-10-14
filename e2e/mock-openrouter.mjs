@@ -57,7 +57,36 @@ function chunk(content, extra = {}) {
   })}\n\n`;
 }
 
+const DIMS = 1024;
+function hashToken(token) {
+  let hash = 2166136261;
+  for (const char of token) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+  return hash % DIMS;
+}
+// A bag-of-words embedding: texts that share words are close together, which is enough to test retrieval.
+function embed(text) {
+  const vector = new Array(DIMS).fill(0);
+  for (const raw of String(text).toLowerCase().match(/[a-z0-9]+/g) ?? []) {
+    if (raw.length < 3) continue;
+    vector[hashToken(raw.replace(/(ing|ed|es|s)$/, ""))] += 1;
+  }
+  return vector;
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function streamText(response, text) {
+  response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
+  response.write(": OPENROUTER PROCESSING\n\n");
+  const middle = Math.ceil(text.length / 2);
+  response.write(chunk(text.slice(0, middle)));
+  await sleep(30);
+  response.write(chunk(text.slice(middle)));
+  response.write(
+    `data: ${JSON.stringify({ id: "gen-mock", model: "mock/free-model", choices: [{ index: 0, delta: { content: "" }, finish_reason: "stop" }], usage: { prompt_tokens: 40, completion_tokens: 20, total_tokens: 60, cost: 0.0002 } })}\n\n`,
+  );
+  response.end("data: [DONE]\n\n");
+}
 
 async function streamCompletion(response, prompt) {
   response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
@@ -241,9 +270,37 @@ const server = createServer(async (request, response) => {
     const body = JSON.parse(raw || "{}");
     const lastUser = [...(body.messages ?? [])].reverse().find((message) => message.role === "user");
     const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
+    if (Array.isArray(lastUser?.content) && lastUser.content.some((part) => part.type === "image_url")) {
+      return streamText(response, "Text in image: INVOICE 4821 total due 310 dollars. The image shows a printed invoice.");
+    }
+    if (system.includes("<source n=") || system.includes("<memory>")) {
+      const source = /<source n="1"[^>]*>\n([\s\S]*?)\n<\/source>/.exec(system)?.[1];
+      const memory = /<memory>([\s\S]*?)<\/memory>/.exec(system)?.[1];
+      const parts = [];
+      if (source) parts.push(`According to your documents [1]: ${source.replace(/\s+/g, " ").slice(0, 120)}`);
+      if (memory) parts.push(`I also remember: ${memory.slice(0, 100)}`);
+      return streamText(response, parts.join(" "));
+    }
     if (system.includes("ONE JSON object")) return streamStructured(response, system, String(lastUser?.content ?? ""));
     const prompt = String(lastUser?.content ?? "").toLowerCase();
     return streamCompletion(response, prompt);
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/v1/embeddings") {
+    if (!authorized(request)) return json(response, 401, { error: { code: 401, message: "No auth credentials found" } });
+    let raw = "";
+    for await (const part of request) raw += part;
+    const body = JSON.parse(raw || "{}");
+    const inputs = Array.isArray(body.input) ? body.input : [body.input];
+    if (inputs.some((text) => String(text).includes("EMBED_FAIL"))) {
+      return json(response, 502, { error: { code: 502, message: "Embedding provider unavailable" } });
+    }
+    return json(response, 200, {
+      object: "list",
+      model: body.model,
+      data: inputs.map((text, index) => ({ object: "embedding", index, embedding: embed(text) })),
+      usage: { prompt_tokens: inputs.length * 10, total_tokens: inputs.length * 10 },
+    });
   }
 
   return json(response, 404, { error: { code: 404, message: `No mock route for ${request.method} ${url.pathname}` } });
