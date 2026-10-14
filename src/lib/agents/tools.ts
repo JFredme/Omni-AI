@@ -1,5 +1,5 @@
 import { z, type ZodType } from "zod";
-import { dateKeySchema, localDateKey } from "@/lib/dates";
+import { addDays, dateKeySchema, localDateKey } from "@/lib/dates";
 import { MAX_NOTE_CONTENT } from "@/lib/notes/schemas";
 import { tagsSchema } from "@/lib/tags";
 import { DUE_FILTERS, TASK_PRIORITIES, TASK_STATUSES, type TaskDto } from "@/lib/tasks/types";
@@ -11,6 +11,7 @@ const notes = () => import("@/lib/notes/service");
 const projects = () => import("@/lib/projects/service");
 const knowledge = () => import("@/lib/knowledge/service");
 const memory = () => import("@/lib/knowledge/memory");
+const calendar = () => import("@/lib/calendar/service");
 
 export interface ToolContext {
   runId: string;
@@ -248,6 +249,50 @@ export const TOOLS: ToolDef[] = [
     run: async ({ content }) => {
       const saved = await (await memory()).createMemory({ content, source: "agent" });
       return { id: saved.id, saved: saved.content };
+    },
+  }),
+  tool({
+    name: "list_events",
+    description: "List calendar events (with repeats expanded), and the tasks and milestones due, from a date for some days.",
+    risk: "read",
+    usage: '{ "from"?: "YYYY-MM-DD" (default today), "days"?: 1-31 (default 7), "timezone"?: IANA zone name (default UTC) }',
+    args: z.object({ from: dateKeySchema.optional(), days: z.number().int().min(1).max(31).optional(), timezone: z.string().max(64).optional() }),
+    run: async ({ from, days, timezone }) => {
+      const { isValidTimeZone, zonedToUtc } = await import("@/lib/calendar/tz");
+      const zone = timezone && isValidTimeZone(timezone) ? timezone : "UTC";
+      const first = from ?? localDateKey();
+      const at = (key: string) => {
+        const [year, month, day] = key.split("-").map(Number);
+        return zonedToUtc({ year, month, day, hour: 0, minute: 0, second: 0 }, zone);
+      };
+      const result = await (await calendar()).listRange(at(first), at(addDays(first, days ?? 7)));
+      return {
+        timezone: zone,
+        events: result.occurrences.slice(0, 60).map((o) => ({ title: o.title, start: o.start, end: o.end, allDay: o.allDay, location: o.location || undefined, repeats: o.recurring })),
+        tasksDue: result.tasks.slice(0, 30).map((t) => ({ title: t.title, due: t.dueDate, priority: t.priority, status: t.status })),
+        milestones: result.milestones.slice(0, 20).map((m) => ({ title: m.title, due: m.dueDate, project: m.projectName })),
+      };
+    },
+  }),
+  tool({
+    name: "create_event",
+    description: "Add a calendar event. For a timed event give ISO date-times; for an all-day event give dates.",
+    risk: "write",
+    usage: '{ "title": text, "start": ISO date-time or "YYYY-MM-DD", "end": ISO date-time or "YYYY-MM-DD" (all-day: the last day), "allDay"?: boolean, "location"?: text, "description"?: text, "timezone"?: IANA zone name }',
+    args: z.object({
+      title: z.string().trim().min(1).max(200),
+      start: z.string().min(8).max(40),
+      end: z.string().min(8).max(40),
+      allDay: z.boolean().optional(),
+      location: z.string().max(300).optional(),
+      description: z.string().max(5_000).optional(),
+      timezone: z.string().max(64).optional(),
+    }),
+    run: async (args) => {
+      const { createEventSchema } = await import("@/lib/calendar/schemas");
+      const parsed = createEventSchema.parse({ ...args, timezone: args.timezone ?? "UTC" });
+      const event = await (await calendar()).createEvent(parsed);
+      return { id: event.id, title: event.title, start: event.startsAt, end: event.endsAt };
     },
   }),
   tool({

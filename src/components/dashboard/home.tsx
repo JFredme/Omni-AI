@@ -27,7 +27,7 @@ export function HomeDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const result = await apiRequest<{ dashboard: DashboardDto }>(`/api/dashboard?today=${localDateKey()}`);
+      const result = await apiRequest<{ dashboard: DashboardDto }>(`/api/dashboard?today=${localDateKey()}&tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`);
       setData(result.dashboard);
       setError(null);
     } catch (caught) {
@@ -59,6 +59,24 @@ export function HomeDashboard() {
 
       <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-10">
+          {data && data.events.length > 0 ? (
+            <section aria-labelledby="schedule-heading" className="space-y-3">
+              <SectionTitle id="schedule-heading" title="Today's schedule" href="/calendar" linkLabel="Calendar" />
+              <ul className="divide-y divide-border border-y border-border">
+                {data.events.map((event) => (
+                  <li key={event.id} className="flex items-baseline gap-4 py-2.5">
+                    <span className="num w-32 shrink-0 text-xs text-muted-foreground">
+                      {event.allDay ? "All day" : `${new Date(event.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} – ${new Date(event.end).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
+                    </span>
+                    <Link href="/calendar" className="min-w-0 flex-1 truncate font-medium hover:text-primary">
+                      {event.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section aria-labelledby="focus-heading" className="space-y-3">
             <SectionTitle id="focus-heading" title="Needs your attention" href="/tasks" linkLabel="All tasks" />
             <QuickAdd onAdded={load} />

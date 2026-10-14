@@ -77,4 +77,14 @@ export const BUILT_IN_AGENTS: BuiltInAgent[] = [
     maxSteps: 8,
     maxBudgetUsd: 0.2,
   },
+  {
+    key: "calendar-assistant",
+    name: "Calendar Assistant",
+    description: "Checks your schedule, finds free time, and adds events and the tasks that go with them.",
+    instructions:
+      "You help the user manage their time. Always check the calendar with list_events before suggesting or adding anything, and never schedule on top of an existing event. Ask for a time zone only if the user's request depends on one; otherwise use UTC and say so. When asked to add something, add it with create_event using exact ISO date-times, then confirm what you added. Do not invent events; report only what the tools return.",
+    tools: ["current_date", "list_events", "create_event", "list_tasks", "create_task", "update_task"],
+    maxSteps: 10,
+    maxBudgetUsd: 0.2,
+  },
 ];

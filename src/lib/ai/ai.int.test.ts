@@ -261,3 +261,76 @@ describe("AI request validation", () => {
     expect(() => applySchema.parse({ kind: "project_plan", projectId: "p", milestones: [], tasks: [{ title: "x", dueDate: "2026-02-31" }] })).toThrow();
   });
 });
+
+describe("AI scheduling (database + mocked OpenRouter)", () => {
+  const inDays = (n: number) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+
+  it("proposes time blocks around existing events, saves nothing, and applies only what is confirmed", async () => {
+    const { createEvent } = await import("@/lib/calendar/service");
+    const { createEventSchema } = await import("@/lib/calendar/schemas");
+    const { prisma: db } = await import("@/lib/db");
+    await db.calendarEvent.deleteMany();
+    const urgent = await createTask({ title: "Write report", priority: "urgent", dueDate: inDays(3) });
+    const other = await createTask({ title: "Email Sam", priority: "low" });
+    const day = inDays(4);
+    // An existing meeting from 10:00 to 11:00 UTC on the target day.
+    await createEvent(createEventSchema.parse({ title: "Meeting", start: `${day}T10:00:00.000Z`, end: `${day}T11:00:00.000Z`, timezone: "UTC" }));
+
+    reply = JSON.stringify({
+      summary: "Two blocks.",
+      blocks: [
+        { taskId: urgent.id, date: day, start: "10:00", minutes: 60, reason: "Due soon." },
+        { taskId: other.id, date: day, start: "13:00", minutes: 30, reason: "Quick one." },
+        { taskId: "invented", date: day, start: "15:00", minutes: 30 },
+      ],
+    });
+    const { proposal } = await propose$({ kind: "schedule_tasks", from: inDays(1), days: 5, timezone: "UTC" });
+    expect(proposal.kind).toBe("schedule_tasks");
+    if (proposal.kind !== "schedule_tasks") return;
+    expect(proposal.blocks).toHaveLength(2);
+    expect(proposal.dropped).toBe(1);
+    // The meeting was nudged around, not overlapped.
+    const first = proposal.blocks.find((b) => b.taskId === urgent.id)!;
+    expect(first.start).toBe(`${day}T11:00:00.000Z`);
+    // The prompt told the model what was busy, and fenced the user's content.
+    expect(requestBody().messages.at(-1)!.content).toContain("<data>");
+    expect(requestBody().messages.at(-1)!.content).toContain(day);
+    expect(await db.calendarEvent.count()).toBe(1);
+
+    const confirmed = { kind: "schedule_tasks" as const, timezone: "UTC", blocks: [{ taskId: urgent.id, start: first.start, end: first.end }] };
+    const applied = await apply$(confirmed);
+    expect(applied.applied).toBe(1);
+    expect((await db.calendarEvent.findMany({ where: { taskId: urgent.id } })).map((e) => e.title)).toEqual(["Work on: Write report"]);
+    expect(await db.calendarEvent.count()).toBe(2);
+
+    // Applying the same thing again, or a block that now clashes, adds nothing.
+    expect((await apply$(confirmed)).applied).toBe(0);
+    const clash = { kind: "schedule_tasks" as const, timezone: "UTC", blocks: [{ taskId: other.id, start: `${day}T10:15:00.000Z`, end: `${day}T10:45:00.000Z` }] };
+    expect((await apply$(clash)).applied).toBe(0);
+    expect(await db.calendarEvent.count()).toBe(2);
+
+    // The task now has time set aside, so it isn't offered again.
+    reply = JSON.stringify({ summary: "x", blocks: [] });
+    const again = await propose$({ kind: "schedule_tasks", from: inDays(1), days: 5, timezone: "UTC" });
+    expect(again.proposal.kind === "schedule_tasks" && again.proposal.reviewed).toBe(1);
+  });
+
+  it("explains when there's nothing to schedule, and rejects bad hours", async () => {
+    await expect(propose$({ kind: "schedule_tasks", from: inDays(1), timezone: "UTC" })).rejects.toMatchObject({ code: "no_tasks" });
+    await createTask({ title: "Something" });
+    await expect(propose$({ kind: "schedule_tasks", from: inDays(1), timezone: "UTC", workStart: "17:00", workEnd: "09:00" })).rejects.toMatchObject({ code: "invalid_hours" });
+    expect(() => proposeSchema.parse({ kind: "schedule_tasks", from: inDays(1), timezone: "Mars/Base" })).toThrow();
+  });
+
+  it("applying skips blocks for finished tasks or in the past", async () => {
+    const done = await createTask({ title: "Already done", status: "done" });
+    const open = await createTask({ title: "Still open" });
+    const past = { taskId: open.id, start: "2020-01-01T10:00:00.000Z", end: "2020-01-01T11:00:00.000Z" };
+    const finished = { taskId: done.id, start: `${inDays(2)}T10:00:00.000Z`, end: `${inDays(2)}T11:00:00.000Z` };
+    expect((await apply$({ kind: "schedule_tasks", timezone: "UTC", blocks: [past, finished] })).applied).toBe(0);
+  });
+});

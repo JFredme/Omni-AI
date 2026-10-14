@@ -18,6 +18,7 @@ import type {
   ProjectPlanProposal,
   Proposal,
   ProposeResponse,
+  ScheduleProposal,
   TaskPrioritiesProposal,
 } from "@/lib/ai/types";
 import { apiRequest, ClientApiError, isAbortError } from "@/lib/client/api";
@@ -36,6 +37,7 @@ const DIALOG_TITLES: Record<Proposal["kind"], string> = {
   task_priorities: "Suggested priorities",
   organize_tasks: "Organize tasks",
   organize_notes: "Organize notes",
+  schedule_tasks: "Suggested time blocks",
 };
 
 /**
@@ -211,6 +213,8 @@ function ProposalBody(props: {
       return <OrganizeNotesReview {...props} proposal={proposal} />;
     case "note_summary":
       return <SummaryReview {...props} proposal={proposal} />;
+    case "schedule_tasks":
+      return <ScheduleReview {...props} proposal={proposal} />;
   }
 }
 
@@ -374,6 +378,61 @@ function PlanReview({ proposal, applying, onApply, onCancel }: ReviewProps<Proje
           milestones.setAll(value);
           tasks.setAll(value);
         }}
+      />
+    </div>
+  );
+}
+
+/* ---------- schedule ---------- */
+
+function ScheduleReview({ proposal, applying, onApply, onCancel }: ReviewProps<ScheduleProposal>) {
+  const selection = useSelection(proposal.blocks.length);
+  if (proposal.blocks.length === 0) {
+    return (
+      <div className="space-y-4 py-6 text-center">
+        <p className="font-medium">No time blocks fit</p>
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+          {proposal.reviewed} open {proposal.reviewed === 1 ? "task was" : "tasks were"} considered, but nothing could be placed without clashing with your calendar or working hours.
+          {proposal.dropped > 0 ? ` ${proposal.dropped} suggestion${proposal.dropped === 1 ? " was" : "s were"} discarded.` : ""}
+        </p>
+        <Button variant="outline" onClick={onCancel}>
+          Close
+        </Button>
+      </div>
+    );
+  }
+  const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const until = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return (
+    <div className="space-y-4">
+      <Summary text={proposal.summary} />
+      <ul className="space-y-2">
+        {proposal.blocks.map((block, index) => (
+          <ReviewRow key={block.taskId} checked={selection.selected[index]} onToggle={() => selection.toggle(index)} label={`Schedule ${block.title}`}>
+            <p className="text-sm font-medium">{block.title}</p>
+            <p className="num text-xs">
+              {when(block.start)} – {until(block.end)}
+              {block.dueDate ? <span className="text-muted-foreground"> · due {formatDateKey(block.dueDate)}</span> : null}
+            </p>
+            {block.reason ? <p className="text-xs text-muted-foreground">{block.reason}</p> : null}
+          </ReviewRow>
+        ))}
+      </ul>
+      {proposal.dropped > 0 ? <p className="text-xs text-muted-foreground">{proposal.dropped} other suggestion{proposal.dropped === 1 ? " was" : "s were"} left out because {proposal.dropped === 1 ? "it" : "they"} didn&apos;t fit.</p> : null}
+      <ReviewFooter
+        selectedCount={selection.count}
+        total={proposal.blocks.length}
+        applying={applying}
+        noun="time block"
+        onCancel={onCancel}
+        onSelectAll={selection.setAll}
+        onApply={() =>
+          onApply({
+            kind: "schedule_tasks",
+            timezone: proposal.timezone,
+            blocks: proposal.blocks.filter((_, index) => selection.selected[index]).map((block) => ({ taskId: block.taskId, start: block.start, end: block.end })),
+          })
+        }
       />
     </div>
   );

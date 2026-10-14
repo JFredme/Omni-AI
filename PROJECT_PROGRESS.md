@@ -1,6 +1,6 @@
 # OMNI AI: project progress
 
-Branch: `part-3-tasks-notes-projects` (not pushed). Last updated after the chat extras.
+Branch: `part-3-tasks-notes-projects` (not pushed). Last updated after the calendar.
 Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailwind v4, Prisma 7, PostgreSQL. AI only through OpenRouter.
 
 ## How to resume
@@ -22,20 +22,21 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 | Security: password sign-in (scrypt), DB sessions, `src/proxy.ts` gate for every page and API route, CSRF origin check, rate limits, audit log, security settings card | done |
 | Knowledge base: PDF/DOCX/XLSX/CSV/MD/TXT/code/image ingestion, chunking with page/heading, OpenRouter embeddings, hybrid semantic+keyword search, document viewer, notes indexing | done |
 | Chat extras: message tree (edit + regenerate branches, sibling switcher), image/document attachments with capability check, code highlighting, export (md/txt/json), summarize (with save-as-note / add-as-tasks), model comparison page | done |
+| Calendar: events with time-zone-correct repeats, month/week/agenda UI, task/milestone overlay, .ics import/export, AI time blocking (propose/apply), home schedule, `list_events`/`create_event` tools, Calendar Assistant agent | done |
 | Memory: add/edit/search/export/delete, global on/off, "Remember this" in chat; RAG in chat with saved, numbered citations; agent tools `search_knowledge`, `search_memory`, `remember`; Document Analyst agent | done |
 
 ## Not built yet (in roadmap order)
 - **Chat still missing:** tool calling inside a chat (agents cover tools).
 - **Tasks/notes extras:** recurring tasks, dependencies, backlinks, rich-text editor, activity history, AI note rewriting, smart scheduling.
 - **Research** (needs a configurable web search provider and its API key).
-- **Calendar** and scheduling (Google Calendar needs OAuth credentials).
+- **Google Calendar sync** (needs a Google OAuth client; calendar itself and .ics import/export are done).
 - **Automations** (workflow builder and background execution; reuse the agent run engine's resumable-loop approach).
 - **Coding workspace** (Monaco, sandboxed execution: must not run AI commands on the host without isolation and approval).
 - **Document generation** (PDF/DOCX/PPTX/XLSX libraries), **integrations** (OAuth for Gmail, Calendar, Drive, GitHub, Notion, Todoist, Discord, Slack).
 - **Universal AI command bar**, **analytics dashboard**, **real home dashboard data** (done: home is now real data from `/api/dashboard`).
 - **Security still open:** none of the listed items; uploads are validated (extension, magic bytes, size, text-only decoding) and never stored or served. Re-audit when attachments and integrations land.
 - **Docker** configuration; **.env.example** exists but should be reviewed when new variables appear.
-- Built-in agents still missing (they need tools that don't exist yet): Research, Coding, Email, Calendar, Data Analyst, Automation.
+- Built-in agents still missing (they need tools that don't exist yet): Research, Coding, Email, Data Analyst, Automation.
 
 ## Design notes worth knowing
 - `src/lib/ai/run.ts` `runAiJson` is the single non-streaming AI entry point (JSON in, validated JSON out, usage recorded, `onUsage` callback). Agents and AI proposals both use it.
@@ -59,4 +60,4 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 
 ## Test results (last full run)
 - typecheck, lint: pass.
-- Unit: 236 passed (38 files). Integration: 125 passed (9 files, real Postgres, mocked OpenRouter). E2E on a production build: auth 9, smoke 9, chat 10, productivity 25, agents 14, knowledge 17, chat-extras 14, all passed.
+- Unit: 277 passed (43 files). Integration: 142 passed (10 files, real Postgres, mocked OpenRouter). E2E on a production build: auth 9, smoke 9, chat 10, productivity 25, agents 14, knowledge 17, chat-extras 14, calendar 14, all passed.

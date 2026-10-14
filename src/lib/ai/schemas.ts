@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { dateKeySchema } from "@/lib/dates";
+import { isValidTimeZone } from "@/lib/calendar/tz";
 import { tagsSchema } from "@/lib/tags";
 import { TASK_PRIORITIES } from "@/lib/tasks/types";
 
@@ -20,6 +21,16 @@ export const proposeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("task_priorities"), taskIds: z.array(id).max(60).optional(), modelId }),
   z.object({ kind: z.literal("organize_tasks"), modelId }),
   z.object({ kind: z.literal("organize_notes"), modelId }),
+  z.object({
+    kind: z.literal("schedule_tasks"),
+    from: dateKeySchema,
+    days: z.number().int().min(1).max(14).default(5),
+    timezone: z.string().max(64).refine(isValidTimeZone, { message: "is not a known time zone" }),
+    workStart: z.string().max(5).default("09:00"),
+    workEnd: z.string().max(5).default("17:00"),
+    taskIds: z.array(id).max(30).optional(),
+    modelId,
+  }),
 ]);
 
 export type ProposeRequest = z.infer<typeof proposeSchema>;
@@ -55,6 +66,20 @@ export const applySchema = z.discriminatedUnion("kind", [
       .array(z.object({ taskId: id, projectId: id.nullable().default(null), addTags: tagsSchema.default([]) }))
       .min(1)
       .max(100),
+  }),
+  z.object({
+    kind: z.literal("schedule_tasks"),
+    timezone: z.string().max(64).refine(isValidTimeZone, { message: "is not a known time zone" }),
+    blocks: z
+      .array(
+        z.object({
+          taskId: id,
+          start: z.string().refine((value) => !Number.isNaN(Date.parse(value)), { message: "must be a date and time" }),
+          end: z.string().refine((value) => !Number.isNaN(Date.parse(value)), { message: "must be a date and time" }),
+        }),
+      )
+      .min(1)
+      .max(40),
   }),
   z.object({
     kind: z.literal("organize_notes"),

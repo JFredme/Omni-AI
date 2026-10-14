@@ -87,12 +87,34 @@ export interface OrganizeNotesProposal {
   suggestions: OrganizeNoteSuggestion[];
 }
 
+export interface ScheduleBlock {
+  taskId: string;
+  title: string;
+  priority: TaskPriority;
+  dueDate: string | null;
+  /** ISO instants. */
+  start: string;
+  end: string;
+  reason: string;
+}
+
+export interface ScheduleProposal {
+  kind: "schedule_tasks";
+  summary: string;
+  timezone: string;
+  reviewed: number;
+  blocks: ScheduleBlock[];
+  /** Suggestions that were thrown away because they didn't fit (double-booked, outside working hours, unknown task). */
+  dropped: number;
+}
+
 export type Proposal =
   | ProjectPlanProposal
   | NoteSummaryProposal
   | TaskPrioritiesProposal
   | OrganizeTasksProposal
-  | OrganizeNotesProposal;
+  | OrganizeNotesProposal
+  | ScheduleProposal;
 
 export interface ProposeResponse {
   proposal: Proposal;

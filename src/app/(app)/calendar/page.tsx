@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { ModulePage } from "@/components/module-page";
-import { getNavItem } from "@/lib/navigation";
+import { CalendarWorkspace } from "@/components/calendar/calendar-workspace";
 
-const item = getNavItem("calendar");
-
-export const metadata: Metadata = {
-  title: item.label,
-};
+export const metadata: Metadata = { title: "Calendar" };
 
 export default function Page() {
-  return <ModulePage item={item} />;
+  return <CalendarWorkspace />;
 }

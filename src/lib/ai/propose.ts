@@ -11,6 +11,7 @@ import {
   summaryPrompt,
 } from "./prompts";
 import { runAiJson } from "./run";
+import { proposeSchedule } from "./schedule";
 import {
   organizeNotesOutputSchema,
   organizeTasksOutputSchema,
@@ -182,5 +183,7 @@ export function propose(request: ProposeRequest, signal?: AbortSignal): Promise<
       return proposeOrganizeTasks(request, signal);
     case "organize_notes":
       return proposeOrganizeNotes(request, signal);
+    case "schedule_tasks":
+      return proposeSchedule(request, signal);
   }
 }

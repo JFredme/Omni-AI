@@ -178,6 +178,14 @@ function agentReply(user) {
 /** Builds the JSON a well-behaved model would return for each planning request. */
 function structuredReply(system, user) {
   if (system.includes("OMNI agent")) return agentReply(user);
+  if (system.includes("Plan focused work time")) {
+    const dates = /dates (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/.exec(system);
+    const ids = allMatches(user, /"taskId":"([^"]+)"/g);
+    return {
+      summary: "Two focused blocks before the deadlines.",
+      blocks: ids.slice(0, 2).map((taskId, index) => ({ taskId, date: dates?.[2], start: index === 0 ? "10:00" : "11:30", minutes: 60, reason: "Fits before the deadline." })),
+    };
+  }
   if (system.includes("You summarize conversations")) {
     return { summary: "A short mock summary of the chat.", keyPoints: ["Mock key point"], actionItems: ["Follow up on the mock chat"] };
   }

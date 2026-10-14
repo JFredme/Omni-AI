@@ -172,6 +172,7 @@ model Task {
   parentId    String?
   parent      Task?        @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks    Task[]       @relation("Subtasks")
+  events      CalendarEvent[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -395,4 +396,30 @@ model Attachment {
 
   @@index([messageId])
   @@index([createdAt])
+}
+
+/// A calendar entry. Timed events store the exact instant; all-day events store UTC midnight dates (end is exclusive).
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  /// Identifies the event across imports and exports (the iCalendar UID).
+  uid         String   @unique @default(cuid())
+  title       String
+  description String   @default("") @db.Text
+  location    String   @default("")
+  startsAt    DateTime
+  endsAt      DateTime
+  allDay      Boolean  @default(false)
+  /// IANA zone the event is scheduled in. Repeats keep this zone's wall-clock time through daylight saving.
+  timezone    String   @default("UTC")
+  /// { freq, interval, byDay?, until?, count? } or null for a one-off event.
+  recurrence  Json?
+  /// Dates (YYYY-MM-DD) of repeats that were removed or edited on their own.
+  exdates     String[] @default([])
+  taskId      String?
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([startsAt])
+  @@index([taskId])
 }

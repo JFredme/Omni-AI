@@ -13,6 +13,7 @@ export interface DashboardDto {
   overdue: DashboardTask[];
   dueToday: DashboardTask[];
   inProgress: DashboardTask[];
+  events: { id: string; title: string; start: string; end: string; allDay: boolean }[];
   projects: { id: string; name: string; dueDate: string | null; progress: number; total: number; done: number; overdue: number }[];
   notes: { id: string; title: string; excerpt: string; updatedAt: string; pinned: boolean }[];
   runs: { id: string; agentName: string; objective: string; status: string; createdAt: string }[];

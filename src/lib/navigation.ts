@@ -70,10 +70,10 @@ export const navItems: NavItem[] = [
     id: "calendar",
     href: "/calendar",
     label: "Calendar",
-    description: "Day, week, and month views with time blocking.",
+    description: "Month, week, and agenda views with repeating events and .ics import.",
     icon: CalendarDays,
     section: "Productivity",
-    status: "planned",
+    status: "ready",
   },
   {
     id: "notes",

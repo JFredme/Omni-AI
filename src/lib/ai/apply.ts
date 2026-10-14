@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { dateKeyToDate } from "@/lib/dates";
 import { POSITION_STEP } from "@/lib/ordering";
 import { normalizeTags } from "@/lib/tags";
+import { applySchedule } from "./schedule";
 import type { ApplyRequest } from "./schemas";
 import type { ApplyResponse } from "./types";
 
@@ -156,5 +157,7 @@ export function applyProposal(request: ApplyRequest): Promise<ApplyResponse> {
       return applyOrganizeTasks(request);
     case "organize_notes":
       return applyOrganizeNotes(request);
+    case "schedule_tasks":
+      return applySchedule(request);
   }
 }

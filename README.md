@@ -24,7 +24,8 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Projects (status, milestones, progress dashboards, linked tasks) | Done (Part 3) |
 | AI integration (break a project into tasks, project plans, note summaries, task priorities, organize tasks and notes), always confirm-before-apply | Done (Part 3) |
 | Agents (builder, run engine, tool registry, approvals, limits, cancellation, bounded delegation, run history) | Done (Part 4, first phase) |
-| Calendar, research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
+| Calendar: month/week/agenda views, repeating events, tasks and milestones overlay, .ics import/export, AI time blocking | Done (Google Calendar sync needs OAuth; see Calendar) |
+| Research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
 
 ## Requirements
 
@@ -145,6 +146,15 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Persistence and recovery.** Runs, steps, and costs are stored in PostgreSQL. A run that was working when the server stopped resumes on the next visit. A tool that was mid-flight is never repeated: the agent is told it may or may not have completed. Runs waiting for approval stay paused.
 - **Prompt injection.** Tool results and your workspace text go to the model inside `<data>` blocks with instructions to treat them as information, and the agent can only use tools you enabled. The main protection is that consequential actions need approval.
 - **Built-in agents:** General Assistant, Project Manager, Study Assistant, and Writing Agent. They are read-only; duplicate one to customize it. The Research, Coding, Email, Calendar, Document Analyst, Data Analyst, and Automation agents will be added together with the tools they need, rather than shipped without them.
+
+## Calendar
+
+- **Events.** Month, week, and agenda views. Click a day (or an hour in the week view) to add an event; click an event to edit or delete it. Tasks with due dates and project milestones appear on their dates as dashed and flagged chips, and link to their pages. Today's events show on the home page.
+- **Repeats** (daily, weekly on chosen days, monthly, yearly; every N; ending never, on a date, or after N times) keep the same clock time in the event's time zone through daylight-saving changes. Editing or deleting a repeating event asks whether it's *only this one* or *the whole series*. A month without the date (the 31st) is skipped, as in iCalendar.
+- **Import and export** use standard `.ics` files, so you can move events to and from Google Calendar, Apple Calendar, and Outlook by file. Re-importing the same file updates events instead of duplicating them. Repeat rules Omni can't represent (for example "first Monday of the month") are imported as a single event, with a warning that says so.
+- **Google Calendar sync is not built.** It needs a Google OAuth client, which only you can create. Import and export are the supported route until then.
+- **Plan my tasks** asks the assistant to place open tasks in free time within your working hours. It sees your existing events and never overlaps them; you review the blocks and choose which to add. Blocks become events linked to their task. Applying the same plan twice doesn't duplicate anything.
+- **Agents.** `list_events` reads the calendar; `create_event` writes, so it asks for approval by default. The built-in **Calendar Assistant** uses both.
 
 ## Knowledge base and memory
 

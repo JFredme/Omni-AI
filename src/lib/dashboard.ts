@@ -4,11 +4,19 @@ import { listNotes } from "@/lib/notes/service";
 import { listProjects } from "@/lib/projects/service";
 import { listRuns } from "@/lib/agents/runs";
 import { listTasks } from "@/lib/tasks/service";
+import { listRange } from "@/lib/calendar/service";
+import { isValidTimeZone, zonedToUtc } from "@/lib/calendar/tz";
+import { addDays } from "@/lib/dates";
 import { getMonthSpend } from "@/lib/usage";
 import type { DashboardDto } from "./dashboard-types";
 
-export async function getDashboard(today: string = localDateKey()): Promise<DashboardDto> {
-  const [overdue, dueToday, inProgress, openCount, projects, notes, runs, spend, settings, conversations] = await Promise.all([
+export async function getDashboard(today: string = localDateKey(), timeZone = "UTC"): Promise<DashboardDto> {
+  const zone = isValidTimeZone(timeZone) ? timeZone : "UTC";
+  const midnight = (key: string) => {
+    const [year, month, day] = key.split("-").map(Number);
+    return zonedToUtc({ year, month, day, hour: 0, minute: 0, second: 0 }, zone);
+  };
+  const [overdue, dueToday, inProgress, openCount, projects, notes, runs, spend, settings, conversations, schedule] = await Promise.all([
     listTasks({ due: "overdue", sort: "due" }, today),
     listTasks({ due: "today", sort: "priority" }, today),
     listTasks({ status: "in_progress", sort: "priority" }, today),
@@ -19,6 +27,7 @@ export async function getDashboard(today: string = localDateKey()): Promise<Dash
     getMonthSpend(),
     prisma.appSettings.findUnique({ where: { id: 1 }, select: { monthlyBudgetUsd: true } }),
     prisma.conversation.count(),
+    listRange(midnight(today), midnight(addDays(today, 1))),
   ]);
 
   const slim = (task: (typeof overdue)[number]) => ({
@@ -36,6 +45,7 @@ export async function getDashboard(today: string = localDateKey()): Promise<Dash
     overdue: overdue.slice(0, 6).map(slim),
     dueToday: dueToday.filter((task) => task.status !== "done").slice(0, 8).map(slim),
     inProgress: inProgress.slice(0, 6).map(slim),
+    events: schedule.occurrences.map((o) => ({ id: `${o.eventId}-${o.key}`, title: o.title, start: o.start, end: o.end, allDay: o.allDay })).slice(0, 8),
     projects: projects.filter((project) => project.status === "active" || project.status === "planning").slice(0, 5).map((project) => ({
       id: project.id,
       name: project.name,
