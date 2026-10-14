@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <div className="app-backdrop flex h-dvh overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Suspense>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Suspense fallback={<div aria-hidden className="glass h-14 shrink-0 border-b border-border" />}>
+        <Suspense fallback={<div aria-hidden className="h-14 shrink-0 border-b border-border" />}>
           <Topbar onOpenMenu={() => setMenuOpen(true)} onOpenPalette={() => setPaletteOpen(true)} />
         </Suspense>
         <main id="main-content" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">

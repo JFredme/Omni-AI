@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { KeyRound, Pencil, ScrollText, Sparkles } from "lucide-react";
+import { Pencil, ScrollText } from "lucide-react";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { Composer } from "@/components/chat/composer";
 import { describeError, useModelCatalog } from "@/components/chat/use-model-catalog";
@@ -257,7 +257,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
 
   return (
     <div className="flex h-[calc(100dvh-6.5rem)] min-h-[32rem] flex-col gap-4 md:flex-row">
-      <aside className="glass hidden w-64 shrink-0 flex-col rounded-2xl border border-border p-3 md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col rounded-2xl border border-border p-3 md:flex">
         <ConversationList
           conversations={conversations}
           activeId={activeId}
@@ -268,7 +268,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         />
       </aside>
 
-      <details className="glass shrink-0 rounded-2xl border border-border p-3 md:hidden">
+      <details className="shrink-0 rounded-2xl border border-border p-3 md:hidden">
         <summary className="cursor-pointer text-sm font-medium">
           Conversations{conversations ? ` (${conversations.length})` : ""}
         </summary>
@@ -284,7 +284,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         </div>
       </details>
 
-      <section className="glass flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border">
         <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {current && editingTitle ? (
@@ -389,7 +389,6 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           {settings && !keyConfigured ? (
             <EmptyState
-              icon={KeyRound}
               title="Connect OpenRouter to start chatting"
               body="Add your OpenRouter API key in Settings. It is encrypted before it is stored, and it never leaves the server."
               action={
@@ -400,18 +399,17 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
             />
           ) : !current && !streaming ? (
             <EmptyState
-              icon={Sparkles}
               title="What would you like to work on?"
               body="Start a conversation with any model on OpenRouter. Replies stream in as they are generated, and every conversation is saved."
               action={
-                <div className="flex w-full max-w-xl flex-col gap-2">
+                <div className="flex w-full flex-col">
                   {SUGGESTIONS.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
                       onClick={() => void runTurn("send", suggestion)}
                       disabled={!selectedModelId}
-                      className="rounded-xl border border-border bg-card px-4 py-2.5 text-left text-sm transition-colors hover:bg-accent disabled:opacity-50"
+                      className="border-t border-border py-3 text-left text-sm transition-colors hover:text-primary disabled:opacity-50"
                     >
                       {suggestion}
                     </button>
@@ -455,24 +453,11 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   );
 }
 
-function EmptyState({
-  icon: Icon,
-  title,
-  body,
-  action,
-}: {
-  icon: typeof Sparkles;
-  title: string;
-  body: string;
-  action: React.ReactNode;
-}) {
+function EmptyState({ title, body, action }: { title: string; body: string; action: React.ReactNode }) {
   return (
-    <div className="flex h-full min-h-64 flex-col items-center justify-center gap-4 text-center">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-        <Icon className="size-6" aria-hidden />
-      </span>
-      <div className="max-w-md space-y-1">
-        <h3 className="text-lg font-semibold">{title}</h3>
+    <div className="mx-auto flex h-full min-h-64 max-w-xl flex-col justify-center gap-5">
+      <div className="space-y-2">
+        <h3 className="font-display text-3xl font-medium leading-tight">{title}</h3>
         <p className="text-sm text-muted-foreground">{body}</p>
       </div>
       {action}

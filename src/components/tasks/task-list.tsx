@@ -19,7 +19,7 @@ export function TaskRow({
 }) {
   const done = task.status === "done";
   return (
-    <li className="group flex items-start gap-3 rounded-xl border border-border bg-card/70 px-3 py-2.5 transition-colors hover:bg-accent/40">
+    <li className="group flex items-start gap-3 px-2 py-3 transition-colors hover:bg-accent/40">
       <input
         type="checkbox"
         checked={done}
@@ -49,7 +49,7 @@ export function TaskList({
   showProject?: boolean;
 }) {
   return (
-    <ul className="space-y-2" aria-label="Tasks">
+    <ul className="divide-y divide-border border-y border-border" aria-label="Tasks">
       {tasks.map((task) => (
         <TaskRow key={task.id} task={task} today={today} onOpen={onOpen} onToggle={onToggle} showProject={showProject} />
       ))}

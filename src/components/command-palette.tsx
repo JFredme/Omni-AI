@@ -111,14 +111,14 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         aria-label="Close command palette"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/50 animate-fade-in"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
         onKeyDown={handleKeyDown}
-        className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl animate-pop-in"
+        className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-popover animate-pop-in"
       >
         <div className="flex items-center gap-3 border-b border-border px-4">
           <input

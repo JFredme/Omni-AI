@@ -43,7 +43,6 @@ export function ProjectsWorkspace() {
   return (
     <div className="space-y-5">
       <PageHeader
-        icon={FolderKanban}
         title="Projects"
         description="Milestones, progress tracking, and AI-assisted planning."
         actions={

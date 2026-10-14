@@ -3,6 +3,7 @@ export const EXCERPT_LENGTH = 160;
 /** A plain-text preview of Markdown: syntax characters removed, whitespace collapsed, then truncated. */
 export function makeExcerpt(markdown: string, maxLength = EXCERPT_LENGTH): string {
   const plain = markdown
+    .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")

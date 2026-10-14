@@ -7,6 +7,10 @@ describe("note logic", () => {
     expect(excerpt).toBe("Title Some bold and code with a link. item one quote");
   });
 
+  it("hides HTML comments such as summary markers", () => {
+    expect(makeExcerpt("<!-- omni-summary -->\nSummary text\n<!-- /omni-summary -->\nBody")).toBe("Summary text Body");
+  });
+
   it("drops fenced code blocks and keeps image alt text", () => {
     expect(makeExcerpt("before\n```js\nconst a = 1;\n```\nafter ![diagram](a.png)")).toBe("before after diagram");
   });

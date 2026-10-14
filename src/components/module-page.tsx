@@ -8,7 +8,7 @@ import type { NavItem } from "@/lib/navigation";
 export function ModulePage({ item }: { item: NavItem }) {
   return (
     <div className="space-y-6">
-      <PageHeader icon={item.icon} title={item.label} description={item.description} />
+      <PageHeader title={item.label} description={item.description} />
       <Card className="flex flex-col gap-4 p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <Badge tone="accent">Not built yet</Badge>

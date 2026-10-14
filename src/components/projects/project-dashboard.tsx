@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, Flag, FolderKanban, ListTree, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarDays, Flag, FolderKanban, ListTree, Pencil, Plus, Wand2, Trash2 } from "lucide-react";
 import { ProposalDialog } from "@/components/ai/proposal-dialog";
 import { describeError } from "@/components/chat/use-model-catalog";
 import { PageHeader } from "@/components/page-header";
@@ -165,7 +165,6 @@ export function ProjectDashboard({ id }: { id: string }) {
       </Link>
 
       <PageHeader
-        icon={FolderKanban}
         title={project.name}
         description={project.description || "No description yet. Add one so the assistant can plan well."}
         actions={
@@ -175,7 +174,7 @@ export function ProjectDashboard({ id }: { id: string }) {
               Break into tasks
             </Button>
             <Button variant="outline" onClick={() => setPlanning("plan")}>
-              <Sparkles className="size-4" aria-hidden />
+              <Wand2 className="size-4" aria-hidden />
               Generate plan
             </Button>
             <Button variant="outline" onClick={() => setEditing(true)}>
@@ -379,7 +378,7 @@ function PlanGoalDialog({ mode, onClose, onSubmit }: { mode: "tasks" | "plan"; o
             Cancel
           </Button>
           <Button variant="primary" onClick={() => onSubmit(goal.trim())}>
-            <Sparkles className="size-4" aria-hidden />
+            <Wand2 className="size-4" aria-hidden />
             {mode === "plan" ? "Generate plan" : "Suggest tasks"}
           </Button>
         </>

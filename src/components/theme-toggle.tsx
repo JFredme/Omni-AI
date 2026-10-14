@@ -35,7 +35,7 @@ export function ThemeSegmentedControl() {
             className={cn(
               "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               selected
-                ? "bg-card text-foreground shadow-sm"
+                ? "bg-card text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >

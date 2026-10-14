@@ -16,10 +16,9 @@ export function Topbar({
   const pathname = usePathname();
   const modifier = useModifierLabel();
   const current = findNavItemForPath(pathname);
-  const CurrentIcon = current?.icon;
 
   return (
-    <header className="glass sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border px-3 sm:px-5">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3 sm:px-5">
       <button
         type="button"
         onClick={onOpenMenu}
@@ -30,8 +29,9 @@ export function Topbar({
       </button>
 
       <div className="flex min-w-0 items-center gap-2">
-        {CurrentIcon ? <CurrentIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
-        <span className="truncate text-sm font-medium">{current?.label ?? "OMNI AI"}</span>
+        <span className="eyebrow truncate">{current?.section ?? "Omni"}</span>
+        <span className="text-muted-foreground/50" aria-hidden>/</span>
+        <span className="truncate text-sm font-medium">{current?.label ?? "Omni"}</span>
       </div>
 
       <div className="ml-auto flex items-center gap-1">
@@ -39,7 +39,7 @@ export function Topbar({
           type="button"
           onClick={onOpenPalette}
           aria-label="Open command palette"
-          className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:w-64 sm:justify-between"
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-card px-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:w-64 sm:justify-between"
         >
           <span className="inline-flex items-center gap-2">
             <Search className="size-4" aria-hidden />

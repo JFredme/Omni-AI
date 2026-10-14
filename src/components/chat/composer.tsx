@@ -49,7 +49,7 @@ export function Composer({
       {disabled && disabledReason ? <p className="px-1 text-xs text-muted-foreground">{disabledReason}</p> : null}
       <div
         className={cn(
-          "flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm transition-colors focus-within:border-ring",
+          "flex items-end gap-2 rounded-2xl border border-border bg-card p-2 transition-colors focus-within:border-ring",
           disabled && "opacity-60",
         )}
       >

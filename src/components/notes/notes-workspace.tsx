@@ -196,7 +196,6 @@ export function NotesWorkspace({ initialId }: { initialId: string | null }) {
   return (
     <div className="space-y-5">
       <PageHeader
-        icon={NotebookPen}
         title="Notes"
         description="Markdown notes with folders, tags, autosave, and AI summaries."
         actions={

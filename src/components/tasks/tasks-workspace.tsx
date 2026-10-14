@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckSquare, Columns3, FilterX, ListTodo, Plus, Search, Sparkles, Wand2 } from "lucide-react";
+import { CheckSquare, Columns3, FilterX, ListTodo, Plus, Search, Wand2 } from "lucide-react";
 import { ProposalDialog } from "@/components/ai/proposal-dialog";
 import { describeError } from "@/components/chat/use-model-catalog";
 import { PageHeader } from "@/components/page-header";
@@ -174,13 +174,12 @@ export function TasksWorkspace() {
   return (
     <div className="space-y-5">
       <PageHeader
-        icon={CheckSquare}
         title="Tasks"
         description="Priorities, deadlines, subtasks, and a Kanban board."
         actions={
           <>
             <Button variant="outline" onClick={() => setAi({ kind: "task_priorities" })}>
-              <Sparkles className="size-4" aria-hidden />
+              <Wand2 className="size-4" aria-hidden />
               Suggest priorities
             </Button>
             <Button variant="outline" onClick={() => setAi({ kind: "organize_tasks" })}>

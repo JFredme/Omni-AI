@@ -88,7 +88,6 @@ export function AgentsWorkspace() {
   return (
     <div className="space-y-6">
       <PageHeader
-        icon={Bot}
         title="Agents"
         description="Agents plan, use your tools, and report back. Changes to your data wait for your approval by default."
         actions={

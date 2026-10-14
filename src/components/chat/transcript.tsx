@@ -55,7 +55,7 @@ export function Transcript({
 
       {live ? (
         <div className="flex flex-col items-start gap-1.5">
-          <div className="max-w-full rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3 text-foreground md:max-w-[85%]">
+          <div className="max-w-full rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 text-foreground md:max-w-[85%]">
             {live.text ? <Markdown>{live.text}</Markdown> : <ThinkingDots />}
             <span className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-foreground align-middle" aria-hidden />
           </div>
@@ -110,7 +110,7 @@ function MessageBubble({
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[90%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-primary/15 px-4 py-3 text-[15px] leading-7 md:max-w-[80%]">
+        <div className="max-w-[90%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-primary/15 px-4 py-3 text-[15px] leading-7 md:max-w-[80%]">
           {message.content}
         </div>
       </div>
@@ -125,7 +125,7 @@ function MessageBubble({
     <div className="flex flex-col items-start gap-1.5">
       <div
         className={cn(
-          "max-w-full rounded-2xl rounded-bl-md border px-4 py-3 md:max-w-[85%]",
+          "max-w-full rounded-2xl rounded-bl-sm border px-4 py-3 md:max-w-[85%]",
           failed ? "border-danger/40 bg-danger/5" : "border-border bg-card",
         )}
       >

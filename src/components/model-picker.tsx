@@ -130,7 +130,7 @@ export function ModelPicker({
           role="dialog"
           aria-label="Choose a model"
           className={cn(
-            "absolute z-40 mt-2 flex max-h-[70vh] w-[min(92vw,30rem)] flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl animate-pop-in",
+            "absolute z-40 mt-2 flex max-h-[70vh] w-[min(92vw,30rem)] flex-col overflow-hidden rounded-2xl border border-border bg-popover animate-pop-in",
             align === "right" ? "right-0" : "left-0",
           )}
         >

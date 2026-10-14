@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, Pin, PinOff, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Pin, PinOff, Wand2, Trash2 } from "lucide-react";
 import { ProposalDialog, type SummaryChoice } from "@/components/ai/proposal-dialog";
 import { Markdown } from "@/components/chat/markdown";
 import { describeError } from "@/components/chat/use-model-catalog";
@@ -191,7 +191,7 @@ export function NoteEditor({
           {pinned ? "Unpin" : "Pin"}
         </Button>
         <Button variant="outline" onClick={startSummary} disabled={!content.trim()}>
-          <Sparkles className="size-4" aria-hidden />
+          <Wand2 className="size-4" aria-hidden />
           Summarize
         </Button>
         {confirmingDelete ? (

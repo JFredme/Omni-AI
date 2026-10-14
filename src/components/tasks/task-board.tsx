@@ -91,7 +91,7 @@ export function TaskBoard({
                   setOver((prev) => (prev?.status === column.status && prev.index === index2 ? prev : { status: column.status, index: index2 }));
                 }}
                 className={cn(
-                  "relative cursor-grab rounded-xl border border-border bg-card p-3 shadow-sm active:cursor-grabbing",
+                  "relative cursor-grab rounded-xl border border-border bg-card p-3 active:cursor-grabbing",
                   dragId === task.id && "opacity-40",
                   over?.status === column.status && over.index === index && dragId !== task.id && "before:absolute before:-top-1.5 before:left-0 before:right-0 before:h-0.5 before:rounded before:bg-primary",
                   over?.status === column.status && over.index === column.tasks.length && index === column.tasks.length - 1 && dragId !== task.id && "after:absolute after:-bottom-1.5 after:left-0 after:right-0 after:h-0.5 after:rounded after:bg-primary",
