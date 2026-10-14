@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { TOOLS } from "./tools";
+import { MAX_AGENT_BUDGET_USD, MAX_AGENT_STEPS } from "./types";
 
-export const MAX_AGENT_STEPS = 30;
-export const MAX_AGENT_BUDGET_USD = 5;
+export { MAX_AGENT_BUDGET_USD, MAX_AGENT_STEPS };
 
 const toolName = z.string().refine((name) => TOOLS.some((tool) => tool.name === name), { message: "is not a known tool" });
 

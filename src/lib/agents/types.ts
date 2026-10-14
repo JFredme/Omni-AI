@@ -1,3 +1,7 @@
+/** Safe to import from browser code: no server-only dependencies. */
+export const MAX_AGENT_STEPS = 30;
+export const MAX_AGENT_BUDGET_USD = 5;
+
 export type AgentRunStatus = "queued" | "running" | "awaiting_approval" | "completed" | "failed" | "cancelled";
 export type AgentStepKind = "action" | "final" | "invalid";
 export type AgentStepStatus = "pending_approval" | "approved" | "running" | "rejected" | "ok" | "error";

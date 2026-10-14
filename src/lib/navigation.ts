@@ -55,7 +55,7 @@ export const navItems: NavItem[] = [
     description: "Build and run multi-step agents with approvals.",
     icon: Bot,
     section: "Workspace",
-    status: "planned",
+    status: "ready",
   },
   {
     id: "tasks",

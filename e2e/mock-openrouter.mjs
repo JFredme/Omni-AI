@@ -114,8 +114,41 @@ function allMatches(text, pattern) {
   return [...text.matchAll(pattern)].map((match) => match[1]);
 }
 
+/**
+ * Replies for the agent loop, chosen from the objective and from which steps already appear in the history.
+ *   "list"      -> list_tasks, then a summary
+ *   "create"    -> create_task, then a confirmation (or an acknowledgement if the user declined)
+ *   "delegate"  -> delegate to the Writing Agent, then report its answer
+ *   "forever"   -> keeps calling current_date (to hit a step limit)
+ *   anything else -> answers directly
+ * The delegated agent's objective is "Child job", which it answers directly.
+ */
+function agentReply(user) {
+  const objective = (user.match(/^Objective: (.*)$/m)?.[1] ?? "").toLowerCase();
+  const history = user.split("What has happened so far:")[1] ?? "";
+  const did = (n) => history.includes(`Step ${n}:`);
+  const declined = history.includes("the user declined this action");
+
+  if (objective.includes("forever")) return { thought: "Again.", action: { tool: "current_date", args: {} } };
+  if (objective.includes("list")) {
+    return did(1) ? { final: "I looked at your tasks and summarized them." } : { thought: "Look at the tasks.", action: { tool: "list_tasks", args: {} } };
+  }
+  if (objective.includes("create")) {
+    if (!did(1)) return { thought: "Create the task.", action: { tool: "create_task", args: { title: "Agent-made task", priority: "high" } } };
+    return { final: declined ? "Understood, I did not create the task." : "I created the task." };
+  }
+  if (objective.includes("delegate")) {
+    if (!did(1)) return { thought: "Hand this off.", action: { tool: "delegate", args: { agent: "Writing Agent", objective: "Child job" } } };
+    const answer = history.match(/Result: \{"answer":"([^"]*)"/)?.[1] ?? "no answer";
+    return { final: `The writing agent said: ${answer}` };
+  }
+  if (objective.includes("child job")) return { final: "Child answer." };
+  return { final: "Done." };
+}
+
 /** Builds the JSON a well-behaved model would return for each planning request. */
 function structuredReply(system, user) {
+  if (system.includes("OMNI agent")) return agentReply(user);
   if (system.includes("Write a practical project plan")) {
     return {
       summary: "Start with research, then build.",
@@ -152,6 +185,13 @@ function structuredReply(system, user) {
 }
 
 async function streamStructured(response, system, user) {
+  if (system.includes("OMNI agent") && user.toLowerCase().includes("objective: stall")) {
+    // Never answers, so a test can cancel the run while it waits on the model.
+    response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
+    response.write(": OPENROUTER PROCESSING\n\n");
+    while (!response.destroyed) await sleep(100);
+    return;
+  }
   const text = JSON.stringify(structuredReply(system, user));
   response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
   response.write(chunk(text.slice(0, Math.floor(text.length / 2))));

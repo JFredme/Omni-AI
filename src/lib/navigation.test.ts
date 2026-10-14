@@ -27,7 +27,7 @@ describe("navigation registry", () => {
 
   it("marks the built sections as ready in this build", () => {
     const ready = navItems.filter((item) => item.status === "ready").map((item) => item.id);
-    expect(ready.sort()).toEqual(["chat", "home", "notes", "projects", "settings", "tasks"]);
+    expect(ready.sort()).toEqual(["agents", "chat", "home", "notes", "projects", "settings", "tasks"]);
   });
 
   it("throws for unknown ids", () => {

@@ -5,7 +5,7 @@ Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Prism
 
 ## Status
 
-This repository is at **Part 3: Tasks, Notes, Projects, and AI integration**.
+This repository is at **Part 4 (in progress): the agent framework is done; memory, knowledge, research, calendar, automation, coding, documents, and integrations are not**. See `PROJECT_PROGRESS.md` for the full list.
 
 | Area | Status |
 | --- | --- |
@@ -21,7 +21,8 @@ This repository is at **Part 3: Tasks, Notes, Projects, and AI integration**.
 | Notes (Markdown, autosave, folders, tags, search, pinning) | Done (Part 3) |
 | Projects (status, milestones, progress dashboards, linked tasks) | Done (Part 3) |
 | AI integration (break a project into tasks, project plans, note summaries, task priorities, organize tasks and notes), always confirm-before-apply | Done (Part 3) |
-| Calendar, agents, knowledge, research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
+| Agents (builder, run engine, tool registry, approvals, limits, cancellation, bounded delegation, run history) | Done (Part 4, first phase) |
+| Calendar, knowledge, research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
 
 ## Requirements
 
@@ -73,12 +74,12 @@ You can instead set `OPENROUTER_API_KEY` in `.env`. The environment key is used 
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript without emitting files |
 | `npm test` | Unit and component tests (Vitest, no database needed) |
-| `npm run test:integration` | Chat, task, note, project, and AI service tests against a real Postgres database (see below) |
-| `npm run test:e2e` | Full browser suite: builds the app, starts a mock OpenRouter server, runs the smoke, chat, and productivity tests |
+| `npm run test:integration` | Chat, task, note, project, AI, and agent service tests against a real Postgres database (see below) |
+| `npm run test:e2e` | Full browser suite: builds the app, starts a mock OpenRouter server, runs the smoke, chat, productivity, and agent tests |
 
 ### Integration tests
 
-`npm run test:integration` runs the chat, task, note, project, and AI services against a real database, with only the OpenRouter HTTP calls mocked. Create a test database first:
+`npm run test:integration` runs the chat, task, note, project, AI, and agent services against a real database, with only the OpenRouter HTTP calls mocked. Create a test database first:
 
 ```bash
 createdb omni_ai_test
@@ -92,6 +93,7 @@ The script applies migrations to `TEST_DATABASE_URL` (default `postgresql://USER
 
 - `e2e/smoke.mjs`: shell, routing, themes, responsive layout, and the 404 page.
 - `e2e/chat.mjs`: saving and testing a key (valid and invalid), the model picker, streaming, stop, mid-stream errors, persistence across reloads, renaming, the spending limit, usage totals, and deletion.
+- `e2e/agents.mjs`: the agent builder and its validation, built-in agents being read-only, a read-only run, writes that wait for approval (and the data being untouched until approved or after a decline), the step limit, cancelling a stalled run, delegation, partial edits, deletion, the missing-key error, and phone-width layout.
 - `e2e/productivity.mjs`: tasks (create, validate, subtasks, filter, search, sort, board drag-and-drop, delete), notes (autosave, reload persistence, Markdown preview, folders, tags, pinning, search), projects (milestones, progress, deletion), every AI action including that nothing is saved before confirmation, usage recording, the missing-key and spending-limit errors, and a phone-width layout check.
 
 The mock OpenRouter server in `e2e/mock-openrouter.mjs` follows the documented request and response formats. For the planning assistant it returns JSON built from the ids in the prompt, so the AI flows run against real records. It is not the live OpenRouter service, and it does not show how a particular real model behaves with the JSON prompts. To check against the live API, run the app with a real key and try a message.
@@ -119,6 +121,18 @@ The assistant uses the same OpenRouter key, default model, spending limit, and u
 
 The model is asked for JSON and the reply is validated; if it isn't usable you see a specific error and can retry (the attempt still appears in usage). Each AI request is recorded in usage like a chat reply.
 
+## Agents
+
+`/agents` lists the agents, lets you build your own, and runs them. A run is an objective plus an agent; the agent works one action at a time, using the tools it was given, until it answers or hits a limit.
+
+- **How a run works.** Each step the model returns one JSON object: a tool call or a final answer. The tool runs against your real tasks, notes, and projects and the result is fed back. Because the protocol is plain JSON through the existing OpenRouter client, it works with any model, whether or not that model supports native tool calling. Unusable replies and failing tools are reported back to the model so it can correct itself (three unusable replies in a row end the run), and rate-limit, timeout, and provider errors are retried.
+- **Approvals.** Tools that change data (`create_task`, `update_task`, `create_note`, `append_to_note`, `create_project`, `add_milestone`) are set to **ask first** by default. The run pauses with the exact arguments shown, and nothing happens until you approve; declining tells the agent so. You can turn approval off per tool in the agent builder.
+- **Limits.** Every run has a step limit (default 10, max 30), a spending limit (default $0.25, max $5) measured from OpenRouter's reported cost, and a 10-minute time limit, and it also respects your monthly limit. Cancel stops a run, including anything it delegated, and aborts the model request in flight. If a model has no known price, its calls count as unknown cost, so the step and time limits are what bound that run.
+- **Delegation.** An agent with the `delegate` tool can hand a sub-task to another agent. Delegation is at most two levels deep, an agent can't delegate to itself, a delegated agent gets only the budget its parent has left, and its cost is rolled into the parent. Delegated agents can't use actions that need approval (there is nobody to ask mid-delegation); they are told so and can report what they couldn't do.
+- **Persistence and recovery.** Runs, steps, and costs are stored in PostgreSQL. A run that was working when the server stopped resumes on the next visit. A tool that was mid-flight is never repeated: the agent is told it may or may not have completed. Runs waiting for approval stay paused.
+- **Prompt injection.** Tool results and your workspace text go to the model inside `<data>` blocks with instructions to treat them as information, and the agent can only use tools you enabled. The main protection is that consequential actions need approval.
+- **Built-in agents:** General Assistant, Project Manager, Study Assistant, and Writing Agent. They are read-only; duplicate one to customize it. The Research, Coding, Email, Calendar, Document Analyst, Data Analyst, and Automation agents will be added together with the tools they need, rather than shipped without them.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
@@ -131,9 +145,9 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 
 ## Data and privacy
 
-- **Stored in PostgreSQL:** settings (including the encrypted OpenRouter key, default model, favorites, and monthly limit), conversations, messages, one usage record per reply or AI request, tasks, projects, milestones, notes, and note folders.
+- **Stored in PostgreSQL:** settings (including the encrypted OpenRouter key, default model, favorites, and monthly limit), conversations, messages, one usage record per reply or AI request, tasks, projects, milestones, notes, note folders, agents, and agent runs with every step's tool input and output.
 - **Stored in the browser:** the theme and sidebar state, in `localStorage`.
-- **Sent to OpenRouter:** the conversation history for each chat request, plus any system instructions you set for that conversation. When you use an AI action, the relevant content is sent: the project's name, description, milestones, and task titles; the text of the note you summarize; titles, descriptions, due dates, and tags of up to 60 open tasks for priorities and organizing; and titles, short excerpts, folders, and tags of up to 60 notes for organizing. Notes are truncated to their first 24,000 characters for summaries.
+- **Sent to OpenRouter:** the conversation history for each chat request, plus any system instructions you set for that conversation. When you use an AI action, the relevant content is sent: the project's name, description, milestones, and task titles; the text of the note you summarize; titles, descriptions, due dates, and tags of up to 60 open tasks for priorities and organizing; and titles, short excerpts, folders, and tags of up to 60 notes for organizing. Notes are truncated to their first 24,000 characters for summaries. An agent run sends the objective, the agent's instructions, and the results of the tools it calls (task, note, and project content) to the model.
 - **Never returned to the browser:** the OpenRouter key. The Settings page shows only its last four characters.
 - Deleting a conversation removes its messages. Its usage records are kept so totals stay accurate.
 - Deleting a task removes its subtasks. Deleting a folder keeps its notes. Deleting a project or milestone keeps its tasks.
@@ -161,6 +175,7 @@ src/
     notes/            Notes workspace and Markdown editor with autosave
     projects/         Project list, dashboard, project and milestone dialogs
     ai/               Review dialog for AI proposals (confirm-before-apply)
+    agents/           Agent workspace, builder dialog, live run view with approvals
     ui/               Buttons, inputs, dialog, tag input, empty and error states
     model-picker.tsx  Searchable model selector
   lib/
@@ -173,6 +188,7 @@ src/
     notes/            Note and folder service, validation, Markdown helpers
     projects/         Project and milestone service, validation, progress logic
     ai/               Proposal prompts, JSON runner, sanitizers, and apply (all through OpenRouter)
+    agents/           Run engine, tool registry, built-in agents, prompts, run history
     client/           Browser helpers: API client, autosave hook
 e2e/                  Browser tests and the mock OpenRouter server
 scripts/              Test runners and the test-data helper

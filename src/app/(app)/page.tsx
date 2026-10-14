@@ -17,11 +17,12 @@ const completed = [
   "Markdown notes with folders, tags, search, and autosave",
   "Projects with milestones, progress dashboards, and linked tasks",
   "AI that proposes project plans, note summaries, priorities, and organization; nothing is saved until you confirm",
+  "Agents that plan, use real tools on your tasks, notes, and projects, and pause for your approval before changing anything",
 ];
 
 const notYet = [
   "Accounts and sign-in",
-  "Calendar and agents",
+  "Calendar",
   "File attachments, branching, tool calling, and persistent memory",
   "Knowledge base, research, code workspace, automations, and analytics",
 ];
