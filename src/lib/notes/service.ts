@@ -1,3 +1,4 @@
+import { emitAppEvent } from "@/lib/automations/events";
 import { ApiError } from "@/lib/api-error";
 import { prisma } from "@/lib/db";
 import { escapeLike } from "@/lib/search";
@@ -72,7 +73,9 @@ export async function createNote(input: {
       folderId: input.folderId ?? null,
     },
   });
-  return serializeNote(row);
+  const note = serializeNote(row);
+  emitAppEvent("note_created", { id: note.id, title: note.title, content: note.content.slice(0, 5_000), tags: note.tags });
+  return note;
 }
 
 export async function updateNote(

@@ -99,3 +99,46 @@ export async function runAiJson<T>(params: {
   if (!parsed.success) throw invalidAiResponse();
   return { data: parsed.data, modelId };
 }
+
+/**
+ * Asks the model for plain text. Same key, budget check, timeout, and usage records as every other AI call; used by
+ * automations, where the reply is passed to later steps as text.
+ */
+export async function runAiText(params: {
+  system?: string;
+  user: string;
+  modelId?: string;
+  signal?: AbortSignal;
+  onUsage?: (usage: AiCallUsage) => void | Promise<void>;
+}): Promise<{ text: string; modelId: string }> {
+  const { key } = await requireApiKey();
+  const modelId = await resolveModel(params.modelId);
+  await assertWithinBudget();
+
+  const timeout = AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS);
+  const signal = params.signal ? AbortSignal.any([params.signal, timeout]) : timeout;
+  let text = "";
+  let usage: UsageInfo | null = null;
+  try {
+    for await (const event of streamChatCompletion({
+      apiKey: key,
+      body: {
+        model: modelId,
+        temperature: 0.4,
+        messages: [...(params.system ? [{ role: "system" as const, content: params.system }] : []), { role: "user" as const, content: params.user }],
+      },
+      signal,
+    })) {
+      if (event.type === "delta") text += event.text;
+      else if (event.type === "usage") usage = event.usage;
+    }
+  } catch (error) {
+    await recordUsage({ modelId, apiKey: key, usage, status: "error" }).catch(() => undefined);
+    if (timeout.aborted && !params.signal?.aborted) throw new OpenRouterError("The request to OpenRouter timed out.", { kind: "timeout" });
+    throw error;
+  }
+  const recorded = await recordUsage({ modelId, apiKey: key, usage, status: "complete" });
+  await params.onUsage?.(recorded);
+  if (!text.trim()) throw new ApiError(502, "empty_reply", "The model returned an empty reply.");
+  return { text: text.trim(), modelId };
+}

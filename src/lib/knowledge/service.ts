@@ -1,6 +1,7 @@
 import { ApiError } from "@/lib/api-error";
 import { describeImage } from "@/lib/ai/vision";
 import { prisma } from "@/lib/db";
+import { emitAppEvent } from "@/lib/automations/events";
 import { OpenRouterError, userMessageFor } from "@/lib/openrouter/errors";
 import { escapeLike } from "@/lib/search";
 import type { Prisma } from "@/generated/prisma/client";
@@ -130,6 +131,7 @@ async function createWithChunks(
   });
   invalidateIndex();
   void embedDocument(row.id);
+  emitAppEvent("document_added", { id: row.id, name: row.name, kind: row.kind });
   return serializeDocument(row);
 }
 

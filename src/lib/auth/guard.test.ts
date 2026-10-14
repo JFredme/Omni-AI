@@ -34,6 +34,17 @@ describe("decideAccess", () => {
   });
 });
 
+describe("webhook addresses", () => {
+  it("need no browser session, whatever Origin they arrive with, but only exactly one path segment deep", () => {
+    const hook = { ...base, method: "POST", origin: "https://some-service.example" };
+    expect(decideAccess({ ...hook, pathname: "/api/hooks/omni_hook_abc123" })).toEqual({ kind: "allow" });
+    expect(decideAccess({ ...hook, pathname: "/api/hooks/" }).kind).toBe("forbidden");
+    expect(decideAccess({ ...base, pathname: "/api/hooks/" })).toEqual({ kind: "unauthorized" });
+    expect(decideAccess({ ...base, pathname: "/api/hooks/a/b" })).toEqual({ kind: "unauthorized" });
+    expect(decideAccess({ ...base, pathname: "/api/hooksx/abc" })).toEqual({ kind: "unauthorized" });
+  });
+});
+
 describe("originProblem", () => {
   it("allows same-origin, missing-origin, and safe methods", () => {
     expect(originProblem("POST", "http://localhost:3000", "localhost:3000")).toBeNull();

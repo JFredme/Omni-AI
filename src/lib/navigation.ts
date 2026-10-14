@@ -124,10 +124,10 @@ export const navItems: NavItem[] = [
     id: "automations",
     href: "/automations",
     label: "Automations",
-    description: "Visual workflows with triggers, actions, and logs.",
+    description: "Step-by-step automations with schedules, triggers, and run history.",
     icon: Workflow,
     section: "Automation",
-    status: "planned",
+    status: "ready",
   },
   {
     id: "analytics",

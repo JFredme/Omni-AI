@@ -6,6 +6,12 @@ import { hit } from "@/lib/rate-limit";
 // Requests that spend money on the model get a tighter limit than everything else.
 const EXPENSIVE = [/^\/api\/conversations\/[^/]+\/(messages|regenerate)$/, /^\/api\/ai\/(propose|apply)$/, /^\/api\/agent-runs$/];
 
+/** Per-minute limits can be raised for load tests or automated runs; the defaults suit one person. */
+function limitFromEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
 function json(status: number, code: string, message: string, headers?: Record<string, string>) {
   return NextResponse.json({ error: { code, message } }, { status, headers });
 }
@@ -43,8 +49,8 @@ export async function proxy(request: NextRequest) {
   if (hasSession && isApiPath(pathname) && request.method !== "GET" && request.method !== "HEAD") {
     const key = token!.slice(0, 16);
     const expensive = request.method === "POST" && EXPENSIVE.some((pattern) => pattern.test(pathname));
-    const general = hit(`api:${key}`, 600, 60_000);
-    const spending = expensive ? hit(`ai:${key}`, 40, 60_000) : null;
+    const general = hit(`api:${key}`, limitFromEnv("OMNI_API_RATE_LIMIT", 600), 60_000);
+    const spending = expensive ? hit(`ai:${key}`, limitFromEnv("OMNI_AI_RATE_LIMIT", 40), 60_000) : null;
     const blocked = !general.allowed ? general : spending && !spending.allowed ? spending : null;
     if (blocked) {
       return json(429, "rate_limited", "You're sending requests too quickly. Wait a moment and try again.", { "Retry-After": String(blocked.retryAfterSeconds) });

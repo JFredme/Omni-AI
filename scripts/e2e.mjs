@@ -1,5 +1,5 @@
 // Runs the end-to-end suite: mock OpenRouter, a fresh e2e database, a production build of the app,
-// then the browser tests (e2e/auth.mjs, e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, e2e/agents.mjs, e2e/knowledge.mjs, e2e/chat-extras.mjs, and e2e/calendar.mjs). Requires Google Chrome installed.
+// then the browser tests (e2e/auth.mjs, e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, e2e/agents.mjs, e2e/knowledge.mjs, e2e/chat-extras.mjs, e2e/calendar.mjs, and e2e/automations.mjs). Requires Google Chrome installed.
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -17,6 +17,9 @@ const env = {
   OPENROUTER_API_KEY: "",
   MOCK_PORT: String(MOCK_PORT),
   OMNI_BASE_URL: baseUrl,
+  // The suites share one session and run fast, so the per-minute limits are raised. They are covered by unit tests.
+  OMNI_AI_RATE_LIMIT: "2000",
+  OMNI_API_RATE_LIMIT: "20000",
 };
 
 const children = [];
@@ -90,6 +93,7 @@ try {
   runOrFail("node", ["e2e/knowledge.mjs"]);
   runOrFail("node", ["e2e/chat-extras.mjs"]);
   runOrFail("node", ["e2e/calendar.mjs"]);
+  runOrFail("node", ["e2e/automations.mjs"]);
   console.log("\nAll end-to-end suites passed.");
 } finally {
   stopAll();

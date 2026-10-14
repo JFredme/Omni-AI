@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { ModulePage } from "@/components/module-page";
-import { getNavItem } from "@/lib/navigation";
+import { AutomationsWorkspace } from "@/components/automations/automations-workspace";
 
-const item = getNavItem("automations");
-
-export const metadata: Metadata = {
-  title: item.label,
-};
+export const metadata: Metadata = { title: "Automations" };
 
 export default function Page() {
-  return <ModulePage item={item} />;
+  return <AutomationsWorkspace />;
 }

@@ -25,7 +25,8 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | AI integration (break a project into tasks, project plans, note summaries, task priorities, organize tasks and notes), always confirm-before-apply | Done (Part 3) |
 | Agents (builder, run engine, tool registry, approvals, limits, cancellation, bounded delegation, run history) | Done (Part 4, first phase) |
 | Calendar: month/week/agenda views, repeating events, tasks and milestones overlay, .ics import/export, AI time blocking | Done (Google Calendar sync needs OAuth; see Calendar) |
-| Research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
+| Automations: visual step flows, schedule/event/webhook triggers, run history | Done |
+| Research, code, analytics | Not started (routes show a "Not built yet" page) |
 
 ## Requirements
 
@@ -147,6 +148,19 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Prompt injection.** Tool results and your workspace text go to the model inside `<data>` blocks with instructions to treat them as information, and the agent can only use tools you enabled. The main protection is that consequential actions need approval.
 - **Built-in agents:** General Assistant, Project Manager, Study Assistant, and Writing Agent. They are read-only; duplicate one to customize it. The Research, Coding, Email, Calendar, Document Analyst, Data Analyst, and Automation agents will be added together with the tools they need, rather than shipped without them.
 
+## Automations
+
+An automation is one **trigger** and an ordered list of **steps**. It is built on the Automations page as a vertical flow; each step can use what the trigger and earlier steps produced through `{{placeholders}}` such as `{{trigger.title}}`, `{{steps.2.output}}`, and `{{today}}`. Placeholders are filled in as plain text; nothing in them is ever run as code.
+
+- **Triggers:** run it yourself; on a schedule (every N minutes, daily, or on chosen weekdays, at a local time in a time zone you choose, with daylight saving handled); when a task is created or completed; when a note is created; when a document is added to Knowledge; or when a private web address is called (a webhook).
+- **Steps:** look up tasks, look up calendar events, ask the AI (your default model; billed and counted in usage like chat), create a task, create a note, add a calendar event, call a web address, and *only continue if…* (stops quietly when a condition is false).
+- **Starts switched off.** Nothing runs on a schedule or a trigger until you switch it on, and an automation with no steps can't be switched on.
+- **Run history** shows every run, and for each step what it was given and what it produced. A failing step stops the run, says why in plain words, and skips what follows. Runs interrupted by a restart are marked failed rather than left "running".
+- **Webhooks.** Create an address on a webhook automation and copy it; for safety it is shown once and only its hash is stored, so a lost address means making a new one (the old one stops working). Switched-off or unknown addresses all answer `404`. Anyone with the address can start the automation, so treat it like a password. The JSON you send is available as `{{trigger.fieldName}}`, and the raw body as `{{trigger.body}}`.
+- **Calling web addresses** is limited to http and https and **blocks addresses on your own machine and network** (including localhost, private ranges, and cloud metadata addresses), checking again on every redirect. Set `AUTOMATION_ALLOW_PRIVATE_HOSTS=1` to allow them deliberately, for example to reach a service on your LAN. Header values (such as an API token) are saved in your database and masked in run history. DNS can change between the check and the request, so don't rely on this to defend against a hostile DNS server you don't control.
+- **Loops can't form.** What an automation does never starts another automation, and one automation can run at most 60 times an hour.
+- **The scheduler** runs inside the app's server process and checks every 20 seconds, so schedules only fire while the server is running. Runs missed while it was off are skipped, not replayed. Set `OMNI_DISABLE_SCHEDULER=1` to turn it off (for example on a second instance sharing a database).
+
 ## Calendar
 
 - **Events.** Month, week, and agenda views. Click a day (or an hour in the week view) to add an event; click an event to edit or delete it. Tasks with due dates and project milestones appear on their dates as dashed and flagged chips, and link to their pages. Today's events show on the home page.
@@ -193,7 +207,7 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Sign-in.** The first time you open the app it asks you to set a password. After that every page and every API route requires a session (a 30-day, HTTP-only cookie). Only a hash of the cookie token is stored in the database, and passwords are hashed with scrypt. Anyone who can reach the server before you set the password can claim it, so set it right away and don't expose a fresh install to a network.
 - **Forgot the password?** There's no email reset. Run `TRUNCATE "AuthConfig", "AuthSession";` in your database, then open the app and set a new one.
 - **Protection against forged requests.** Writes from another site are refused (the `Origin` header must match the host), and the cookie is `SameSite=Lax`.
-- **Rate limits.** 8 wrong passwords per 15 minutes, 600 writes per minute, and 40 model-spending requests per minute. They live in memory, so they reset when the server restarts. Behind a reverse proxy, set `TRUST_PROXY=1` so limits use the real client address from `X-Forwarded-For`.
+- **Rate limits.** 8 wrong passwords per 15 minutes, 600 writes per minute, and 40 model-spending requests per minute. They live in memory, so they reset when the server restarts. `OMNI_API_RATE_LIMIT` and `OMNI_AI_RATE_LIMIT` change the write and model-spending limits. Behind a reverse proxy, set `TRUST_PROXY=1` so limits use the real client address from `X-Forwarded-For`.
 - **Audit log.** Sign-ins, failures, lock-outs, sign-outs and password changes are recorded and shown in Settings. It never contains passwords or keys.
 - The server still binds to `127.0.0.1` by default. If you put it behind HTTPS, the cookie is marked `Secure` automatically.
 - Model output is rendered as Markdown without raw HTML, and links open in a new tab with `rel="noopener noreferrer"`.

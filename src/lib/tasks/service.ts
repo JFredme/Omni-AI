@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { addDays, dateKeyToDate, dateToDateKey, localDateKey } from "@/lib/dates";
 import { POSITION_STEP } from "@/lib/ordering";
 import { escapeLike } from "@/lib/search";
+import { emitAppEvent } from "@/lib/automations/events";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CreateTaskInput, UpdateTaskInput } from "./schemas";
 import type { TaskDto, TaskFilters, TaskSort } from "./types";
@@ -175,7 +176,13 @@ export async function createTask(input: CreateTaskInput): Promise<TaskDto> {
     },
     include: taskInclude,
   });
-  return serializeTask(row);
+  const created = serializeTask(row);
+  emitAppEvent("task_created", taskPayload(created));
+  return created;
+}
+
+function taskPayload(task: TaskDto) {
+  return { id: task.id, title: task.title, description: task.description, priority: task.priority, dueDate: task.dueDate, tags: task.tags, project: task.projectName };
 }
 
 export async function updateTask(id: string, patch: UpdateTaskInput): Promise<TaskDto> {
@@ -207,7 +214,9 @@ export async function updateTask(id: string, patch: UpdateTaskInput): Promise<Ta
     },
     include: taskInclude,
   });
-  return serializeTask(row);
+  const updated = serializeTask(row);
+  if (patch.status === "done" && existing.status !== "done") emitAppEvent("task_completed", taskPayload(updated));
+  return updated;
 }
 
 export async function deleteTask(id: string): Promise<void> {

@@ -11,8 +11,15 @@ export type AccessDecision =
   | { kind: "unauthorized" }
   | { kind: "forbidden"; reason: string };
 
+/** Webhook addresses carry their own secret, so they don't need a browser session. */
+export const WEBHOOK_PREFIX = "/api/hooks/";
+
+export function isWebhookPath(pathname: string): boolean {
+  return pathname.startsWith(WEBHOOK_PREFIX) && pathname.length > WEBHOOK_PREFIX.length && !pathname.slice(WEBHOOK_PREFIX.length).includes("/");
+}
+
 export function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname);
+  return PUBLIC_PATHS.has(pathname) || isWebhookPath(pathname);
 }
 
 export function isApiPath(pathname: string): boolean {
@@ -40,6 +47,8 @@ export function decideAccess(input: {
   host: string | null;
   hasSession: boolean;
 }): AccessDecision {
+  // Webhooks are called by other services, not by this site's pages, so a mismatched Origin says nothing about them.
+  if (isWebhookPath(input.pathname)) return { kind: "allow" };
   const problem = isApiPath(input.pathname) || isPublicPath(input.pathname) ? originProblem(input.method, input.origin, input.host) : null;
   if (problem) return { kind: "forbidden", reason: problem };
   if (isPublicPath(input.pathname) || input.hasSession) return { kind: "allow" };

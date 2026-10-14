@@ -423,3 +423,69 @@ model CalendarEvent {
   @@index([startsAt])
   @@index([taskId])
 }
+
+enum WorkflowRunStatus {
+  running
+  succeeded
+  failed
+  skipped
+}
+
+enum WorkflowStepStatus {
+  running
+  ok
+  error
+  skipped
+}
+
+/// An automation: one trigger and an ordered list of steps. Both are stored as validated JSON.
+model Workflow {
+  id               String        @id @default(cuid())
+  name             String
+  description      String        @default("")
+  /// New automations start switched off so nothing runs before the user has looked at it.
+  enabled          Boolean       @default(false)
+  trigger          Json
+  steps            Json
+  /// For schedule triggers: when it fires next.
+  nextRunAt        DateTime?
+  lastRunAt        DateTime?
+  /// SHA-256 of the webhook secret. The secret itself is shown once and never stored.
+  webhookTokenHash String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  runs             WorkflowRun[]
+
+  @@index([enabled, nextRunAt])
+}
+
+model WorkflowRun {
+  id          String            @id @default(cuid())
+  workflowId  String
+  workflow    Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  status      WorkflowRunStatus @default(running)
+  triggerType String
+  triggerData Json?
+  error       String?           @db.Text
+  startedAt   DateTime          @default(now())
+  finishedAt  DateTime?
+  steps       WorkflowRunStep[]
+
+  @@index([workflowId, startedAt])
+}
+
+model WorkflowRunStep {
+  id         String             @id @default(cuid())
+  runId      String
+  run        WorkflowRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  index      Int
+  type       String
+  status     WorkflowStepStatus @default(running)
+  input      Json?
+  output     Json?
+  error      String?            @db.Text
+  startedAt  DateTime           @default(now())
+  finishedAt DateTime?
+
+  @@index([runId, index])
+}
