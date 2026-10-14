@@ -187,3 +187,90 @@ model Note {
   @@index([updatedAt])
   @@index([folderId])
 }
+
+enum AgentRunStatus {
+  queued
+  running
+  awaiting_approval
+  completed
+  failed
+  cancelled
+}
+
+enum AgentStepKind {
+  action
+  final
+  invalid
+}
+
+enum AgentStepStatus {
+  pending_approval
+  approved
+  running
+  rejected
+  ok
+  error
+}
+
+model Agent {
+  id            String     @id @default(cuid())
+  name          String
+  description   String     @default("") @db.Text
+  instructions  String     @default("") @db.Text
+  modelId       String?
+  /// Tool names this agent may use.
+  tools         String[]   @default([])
+  /// Subset of `tools` that pause for the user's approval before running.
+  approvalTools String[]   @default([])
+  maxSteps      Int        @default(10)
+  maxBudgetUsd  Float      @default(0.25)
+  /// Set for agents that ship with the app; those are read-only (duplicate to customize).
+  builtInKey    String?    @unique
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  runs          AgentRun[]
+}
+
+model AgentRun {
+  id          String         @id @default(cuid())
+  agentId     String
+  agent       Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  parentRunId String?
+  parentRun   AgentRun?      @relation("Delegation", fields: [parentRunId], references: [id], onDelete: Cascade)
+  childRuns   AgentRun[]     @relation("Delegation")
+  depth       Int            @default(0)
+  objective   String         @db.Text
+  status      AgentRunStatus @default(queued)
+  result      String?        @db.Text
+  error       String?        @db.Text
+  stepCount   Int            @default(0)
+  totalTokens Int            @default(0)
+  costUsd     Float          @default(0)
+  /// Spending cap for this run; a delegated run gets at most what its parent has left.
+  budgetUsd   Float
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  steps       AgentStep[]
+
+  @@index([agentId, createdAt])
+  @@index([status])
+  @@index([parentRunId])
+}
+
+model AgentStep {
+  id        String          @id @default(cuid())
+  runId     String
+  run       AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  index     Int
+  kind      AgentStepKind
+  thought   String?         @db.Text
+  tool      String?
+  input     Json?
+  output    String?         @db.Text
+  status    AgentStepStatus @default(ok)
+  createdAt DateTime        @default(now())
+
+  @@unique([runId, index])
+}

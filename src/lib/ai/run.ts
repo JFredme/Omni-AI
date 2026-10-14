@@ -18,12 +18,18 @@ async function resolveModel(requested?: string): Promise<string> {
   throw new ApiError(400, "model_required", "Choose a default model in Settings or AI Chat before using AI features.");
 }
 
+export interface AiCallUsage {
+  totalTokens: number;
+  /** Null when neither OpenRouter nor the catalog could price the call. */
+  costUsd: number | null;
+}
+
 async function recordUsage(params: {
   modelId: string;
   apiKey: string;
   usage: UsageInfo | null;
   status: "complete" | "error";
-}) {
+}): Promise<AiCallUsage> {
   const cost =
     params.status === "complete" ? await resolveCost(params.modelId, params.apiKey, params.usage) : { costUsd: null, source: "unknown" as const };
   await prisma.usageRecord.create({
@@ -37,6 +43,7 @@ async function recordUsage(params: {
       status: params.status,
     },
   });
+  return { totalTokens: params.usage?.totalTokens ?? 0, costUsd: cost.costUsd };
 }
 
 /**
@@ -49,6 +56,8 @@ export async function runAiJson<T>(params: {
   schema: ZodType<T>;
   modelId?: string;
   signal?: AbortSignal;
+  /** Called once the call's usage is recorded, before the reply is parsed (so spend is known even if parsing fails). */
+  onUsage?: (usage: AiCallUsage) => void | Promise<void>;
 }): Promise<{ data: T; modelId: string }> {
   const { key } = await requireApiKey();
   const modelId = await resolveModel(params.modelId);
@@ -83,7 +92,8 @@ export async function runAiJson<T>(params: {
     throw error;
   }
 
-  await recordUsage({ modelId, apiKey: key, usage, status: "complete" });
+  const recorded = await recordUsage({ modelId, apiKey: key, usage, status: "complete" });
+  await params.onUsage?.(recorded);
 
   const parsed = params.schema.safeParse(extractJson(text));
   if (!parsed.success) throw invalidAiResponse();

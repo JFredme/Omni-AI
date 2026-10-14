@@ -1,0 +1,70 @@
+import { TOOLS } from "./tools";
+
+export interface BuiltInAgent {
+  key: string;
+  name: string;
+  description: string;
+  instructions: string;
+  tools: string[];
+  maxSteps: number;
+  maxBudgetUsd: number;
+}
+
+const WRITE_TOOLS = new Set(TOOLS.filter((tool) => tool.risk === "write").map((tool) => tool.name));
+
+/** Tools in `tools` that change data. Built-in agents ask before using these. */
+export function approvalFor(tools: string[]): string[] {
+  return tools.filter((name) => WRITE_TOOLS.has(name));
+}
+
+const READ = ["current_date", "list_tasks", "list_projects", "get_project", "search_notes", "read_note"];
+const TASK_WRITE = ["create_task", "update_task"];
+const NOTE_WRITE = ["create_note", "append_to_note"];
+const PROJECT_WRITE = ["create_project", "add_milestone"];
+
+/**
+ * Agents that ship with the app. Only agents whose tools exist today are listed; the research, coding, email,
+ * calendar, document, data, and automation agents are added together with the tools they need.
+ */
+export const BUILT_IN_AGENTS: BuiltInAgent[] = [
+  {
+    key: "general-assistant",
+    name: "General Assistant",
+    description: "Answers questions about your work and handles everyday requests across tasks, notes, and projects.",
+    instructions:
+      "You are a helpful, concise assistant for the user's personal workspace. Look things up with your tools before answering questions about their data. When asked to change something, make the smallest change that does what they asked. If another agent is clearly better suited to a sub-task, you may delegate it.",
+    tools: [...READ, ...TASK_WRITE, ...NOTE_WRITE, ...PROJECT_WRITE, "delegate"],
+    maxSteps: 12,
+    maxBudgetUsd: 0.25,
+  },
+  {
+    key: "project-manager",
+    name: "Project Manager",
+    description: "Reviews projects, finds what is late or stuck, and creates the tasks and milestones to move them forward.",
+    instructions:
+      "You are a pragmatic project manager. Start by reviewing the relevant projects and tasks. Point out overdue and unowned work, then propose or create concrete next steps with priorities and realistic due dates. Do not create duplicates of tasks that already exist. Summarize what you found and what you changed.",
+    tools: [...READ, ...TASK_WRITE, ...PROJECT_WRITE],
+    maxSteps: 14,
+    maxBudgetUsd: 0.3,
+  },
+  {
+    key: "study-assistant",
+    name: "Study Assistant",
+    description: "Turns notes into study guides, practice questions, and study tasks.",
+    instructions:
+      "You help the user learn. Read the notes they point to, then produce clear study material in Markdown: key ideas, definitions, and practice questions with answers. Save study guides as new notes when asked, and create tasks for study sessions when asked. Base everything on their notes; say so when the notes don't cover something.",
+    tools: [...READ, ...NOTE_WRITE, ...TASK_WRITE],
+    maxSteps: 10,
+    maxBudgetUsd: 0.25,
+  },
+  {
+    key: "writing-agent",
+    name: "Writing Agent",
+    description: "Drafts, rewrites, and organizes written material in your notes.",
+    instructions:
+      "You are a careful writing partner. Read the user's existing notes for context, keep their voice, and produce polished Markdown. Save drafts as new notes, or append to an existing note when asked. Never overwrite text the user didn't ask you to change.",
+    tools: [...READ, ...NOTE_WRITE],
+    maxSteps: 8,
+    maxBudgetUsd: 0.2,
+  },
+];
