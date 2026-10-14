@@ -75,12 +75,21 @@ describe("useAutosave", () => {
     expect(result.current.pending).toBe(true);
 
     await act(async () => {
-      await result.current.flush();
+      expect(await result.current.flush()).toBe(true);
     });
     expect(save).toHaveBeenCalledTimes(2);
     expect(result.current.status).toBe("saved");
     expect(result.current.error).toBeNull();
     expect(result.current.pending).toBe(false);
+  });
+
+  it("flush reports false when the save fails", async () => {
+    const save = vi.fn().mockRejectedValue(new Error("nope"));
+    const { result, rerender } = setup(save);
+    rerender({ value: "x" });
+    await act(async () => {
+      expect(await result.current.flush()).toBe(false);
+    });
   });
 
   it("flush saves immediately without waiting for the delay", async () => {

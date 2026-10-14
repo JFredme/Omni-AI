@@ -77,10 +77,11 @@ export function useAutosave<T>({
     };
   }, [value, delayMs, run]);
 
-  /** Saves any pending change now and resolves once nothing is left to save (or a save failed). */
+  /** Saves any pending change now. Resolves true when nothing is left unsaved, false if a save failed. */
   const flush = useCallback(async () => {
     if (timer.current) clearTimeout(timer.current);
     await run();
+    return equalRef.current(latest.current, saved.current);
   }, [run]);
 
   useEffect(() => {
