@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { decideAccess, isApiPath, SESSION_COOKIE } from "@/lib/auth/guard";
+import { decideAccess, isApiPath, loginRequired, SESSION_COOKIE } from "@/lib/auth/guard";
 import { validateSession } from "@/lib/auth/session";
 import { hit } from "@/lib/rate-limit";
 
@@ -20,9 +20,11 @@ export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE)?.value;
 
-  let hasSession = false;
+  // With sign-in off, everyone is treated as signed in; the cross-site check and rate limits still apply.
+  const signInOn = loginRequired();
+  let hasSession = !signInOn;
   try {
-    hasSession = await validateSession(token);
+    if (signInOn) hasSession = await validateSession(token);
   } catch (error) {
     console.error("Could not check the session:", error);
     return isApiPath(pathname) ? json(503, "unavailable", "The database is not reachable.") : new NextResponse("The database is not reachable. Check that PostgreSQL is running.", { status: 503 });
@@ -47,7 +49,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (hasSession && isApiPath(pathname) && request.method !== "GET" && request.method !== "HEAD") {
-    const key = token!.slice(0, 16);
+    const key = token ? token.slice(0, 16) : "local";
     const expensive = request.method === "POST" && EXPENSIVE.some((pattern) => pattern.test(pathname));
     const general = hit(`api:${key}`, limitFromEnv("OMNI_API_RATE_LIMIT", 600), 60_000);
     const spending = expensive ? hit(`ai:${key}`, limitFromEnv("OMNI_AI_RATE_LIMIT", 40), 60_000) : null;

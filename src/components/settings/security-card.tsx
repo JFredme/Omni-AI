@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
 import { ErrorBanner } from "@/components/ui/states";
 import { apiRequest, ClientApiError } from "@/lib/client/api";
+import { useLoginRequired } from "@/lib/client/login-required";
 import { formatRelativeDate } from "@/lib/format";
 
 interface SessionRow {
@@ -29,7 +30,7 @@ function describeAgent(agent: string | null): string {
   return system ? `${browser} on ${system}` : browser;
 }
 
-export function SecurityCard() {
+function SecurityCardOn() {
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
   const [entries, setEntries] = useState<AuditEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +157,20 @@ export function SecurityCard() {
           </ul>
         )}
       </div>
+    </Card>
+  );
+}
+
+export function SecurityCard() {
+  const required = useLoginRequired();
+  if (required === null) return null;
+  if (required) return <SecurityCardOn />;
+  return (
+    <Card>
+      <h2 className="font-display text-xl">Sign-in is off</h2>
+      <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+        Anyone who can open this address can use the app, which is fine on your own computer. To require a password, set <code className="font-mono">OMNI_REQUIRE_LOGIN=1</code> in <code className="font-mono">.env</code> and restart. Do that before exposing the app to a network.
+      </p>
     </Card>
   );
 }

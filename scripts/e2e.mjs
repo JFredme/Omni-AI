@@ -12,6 +12,7 @@ const baseUrl = `http://localhost:${APP_PORT}`;
 const env = {
   ...process.env,
   DATABASE_URL: databaseUrl,
+  OMNI_REQUIRE_LOGIN: "1",
   ENCRYPTION_KEY: "e2e-encryption-secret-0123456789-abcdef",
   OPENROUTER_BASE_URL: `http://localhost:${MOCK_PORT}/api/v1`,
   OPENROUTER_API_KEY: "",

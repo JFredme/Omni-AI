@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useLoginRequired } from "@/lib/client/login-required";
 import { navItems, navSections, isActivePath, type NavItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +76,7 @@ export function NavContent({
   onNavigate?: () => void;
 }) {
   const settings = navItems.find((item) => item.id === "settings");
+  const loginRequired = useLoginRequired();
 
   return (
     <>
@@ -110,6 +112,7 @@ export function NavContent({
       {settings ? (
         <div className="space-y-0.5 border-t border-sidebar-border px-2 py-2">
           <NavLink item={settings} collapsed={collapsed} onNavigate={onNavigate} />
+          {loginRequired ? (
           <button
             type="button"
             onClick={signOut}
@@ -122,6 +125,7 @@ export function NavContent({
             <LogOut className="size-[17px] shrink-0" strokeWidth={1.6} aria-hidden />
             {collapsed ? <span className="sr-only">Sign out</span> : <span>Sign out</span>}
           </button>
+          ) : null}
         </div>
       ) : null}
     </>

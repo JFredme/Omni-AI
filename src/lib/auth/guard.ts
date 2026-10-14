@@ -62,3 +62,11 @@ export function safeNextPath(value: string | null | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";
   return value;
 }
+
+/**
+ * Sign-in is off unless OMNI_REQUIRE_LOGIN=1. That suits an app on your own computer; turn it on before the app can be
+ * reached by anyone else (a server, a shared network, Docker published beyond this machine).
+ */
+export function loginRequired(): boolean {
+  return process.env.OMNI_REQUIRE_LOGIN === "1";
+}

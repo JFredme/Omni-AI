@@ -15,7 +15,7 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Streaming chat (stop, regenerate, retry, model switching, system instructions, rename, delete) | Done |
 | Persistent conversations and messages (PostgreSQL via Prisma) | Done |
 | Usage tracking (tokens, cost, 30-day breakdown), monthly spending limit | Done |
-| Password sign-in, protected pages and API, rate limiting, audit log | Done (see Security) |
+| Optional password sign-in (off by default), cross-site protection, rate limiting, audit log | Done (see Security) |
 | Chat: editing and branching, image and document attachments, code highlighting, export, summaries, model comparison | Done |
 | Chat tool calling and JSON mode | Not started (use Agents for tools) |
 | Knowledge base (PDF, Word, Excel, CSV, Markdown, text, code, images; hybrid search; citations in chat) and memory | Done |
@@ -278,6 +278,7 @@ Open **Analytics** for 7, 30, or 90 days of your own data: tasks created and fin
 
 ## Security
 
+- **Sign-in is off by default**, which suits an app on your own computer (it listens on 127.0.0.1 only). Set `OMNI_REQUIRE_LOGIN=1` in `.env` and restart to require a password; do that before the app can be reached by anyone else. With it on:
 - **Sign-in.** The first time you open the app it asks you to set a password. After that every page and every API route requires a session (a 30-day, HTTP-only cookie). Only a hash of the cookie token is stored in the database, and passwords are hashed with scrypt. Anyone who can reach the server before you set the password can claim it, so set it right away and don't expose a fresh install to a network.
 - **Forgot the password?** There's no email reset. Run `TRUNCATE "AuthConfig", "AuthSession";` in your database, then open the app and set a new one.
 - **Protection against forged requests.** Writes from another site are refused (the `Origin` header must match the host), and the cookie is `SameSite=Lax`.
