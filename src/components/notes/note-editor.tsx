@@ -136,19 +136,25 @@ export function NoteEditor({
           className="h-10 min-w-48 flex-1 border-transparent bg-transparent text-lg font-semibold hover:border-border"
         />
         <div role="group" aria-label="Editor mode" className="inline-flex rounded-lg border border-border bg-card p-0.5">
-          {(["write", "preview", "split"] as const).map((value) => (
+          {(
+            [
+              ["write", "Write"],
+              ["preview", "Preview"],
+              ["split", "Split"],
+            ] as const
+          ).map(([value, label]) => (
             <button
               key={value}
               type="button"
               aria-pressed={mode === value}
               onClick={() => setMode(value)}
               className={cn(
-                "h-8 rounded-md px-3 text-sm font-medium capitalize transition-colors",
+                "h-8 rounded-md px-3 text-sm font-medium transition-colors",
                 value === "split" && "hidden lg:inline-block",
                 mode === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {value}
+              {label}
             </button>
           ))}
         </div>

@@ -13,11 +13,15 @@ const completed = [
   "Searchable model catalog with favorites, default model, and capability filters",
   "Streaming AI chat with saved conversations, stop, regenerate, and model switching",
   "Token usage, cost tracking, and a monthly spending limit",
+  "Tasks with priorities, due dates, subtasks, tags, filters, and a Kanban board",
+  "Markdown notes with folders, tags, search, and autosave",
+  "Projects with milestones, progress dashboards, and linked tasks",
+  "AI that proposes project plans, note summaries, priorities, and organization; nothing is saved until you confirm",
 ];
 
 const notYet = [
   "Accounts and sign-in",
-  "Tasks, notes, calendar, projects, and agents",
+  "Calendar and agents",
   "File attachments, branching, tool calling, and persistent memory",
   "Knowledge base, research, code workspace, automations, and analytics",
 ];

@@ -90,12 +90,22 @@ export function ProjectDashboard({ id }: { id: string }) {
   }
 
   async function toggleMilestone(milestone: MilestoneDto) {
+    const completedAt = milestone.completedAt ? null : new Date().toISOString();
+    setProject((prev) =>
+      prev
+        ? {
+            ...prev,
+            milestoneDone: prev.milestoneDone + (completedAt ? 1 : -1),
+            milestones: prev.milestones.map((item) => (item.id === milestone.id ? { ...item, completedAt } : item)),
+          }
+        : prev,
+    );
     try {
-      await apiRequest(`/api/milestones/${milestone.id}`, { method: "PATCH", json: { completed: !milestone.completedAt } });
-      reload();
+      await apiRequest(`/api/milestones/${milestone.id}`, { method: "PATCH", json: { completed: Boolean(completedAt) } });
     } catch (caught) {
       setBanner(describeError(caught));
     }
+    reload();
   }
 
   async function quickAdd(event: React.FormEvent) {

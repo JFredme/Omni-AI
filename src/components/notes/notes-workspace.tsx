@@ -112,6 +112,9 @@ export function NotesWorkspace({ initialId }: { initialId: string | null }) {
   async function createNote() {
     setCreating(true);
     setBanner(null);
+    // Take the current note off screen right away (it saves in the background), so nothing typed while the
+    // new note is being created can land in the old one.
+    setActive(null);
     try {
       const { note } = await apiRequest<{ note: NoteDto }>("/api/notes", {
         json: { ...(folderFilter && folderFilter !== "none" ? { folderId: folderFilter } : {}), ...(tagFilter ? { tags: [tagFilter] } : {}) },

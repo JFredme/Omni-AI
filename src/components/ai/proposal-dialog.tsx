@@ -58,6 +58,7 @@ export function ProposalDialog({
   const [state, setState] = useState<
     { phase: "loading" } | { phase: "error"; error: unknown } | { phase: "ready"; data: ProposeResponse } | { phase: "done"; message: string }
   >({ phase: "loading" });
+  const [kindTitle, setKindTitle] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const requestRef = useRef(request);
@@ -68,7 +69,10 @@ export function ProposalDialog({
     const controller = new AbortController();
     abortRef.current = controller;
     apiRequest<ProposeResponse>("/api/ai/propose", { json: requestRef.current, signal: controller.signal })
-      .then((data) => setState({ phase: "ready", data }))
+      .then((data) => {
+        setKindTitle(DIALOG_TITLES[data.proposal.kind]);
+        setState({ phase: "ready", data });
+      })
       .catch((error: unknown) => {
         if (!isAbortError(error)) setState({ phase: "error", error });
       });
@@ -113,7 +117,7 @@ export function ProposalDialog({
     }
   }
 
-  const title = state.phase === "ready" ? DIALOG_TITLES[state.data.proposal.kind] : "AI assistant";
+  const title = kindTitle ?? "AI assistant";
 
   return (
     <Dialog

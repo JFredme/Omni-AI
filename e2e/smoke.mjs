@@ -61,6 +61,8 @@ try {
   });
 
   await check("module placeholder page is honest about status", async () => {
+    await desktop.goto(`${baseUrl}/calendar`);
+    await desktop.getByRole("heading", { name: "Calendar", level: 1 }).waitFor();
     const text = await desktop.locator("main").textContent();
     assert.match(text ?? "", /Not built yet/);
   });

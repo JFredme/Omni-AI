@@ -25,9 +25,9 @@ describe("navigation registry", () => {
     expect(sectionItems.map((item) => item.id)).not.toContain("settings");
   });
 
-  it("marks home, AI chat, and settings as ready in this build", () => {
+  it("marks the built sections as ready in this build", () => {
     const ready = navItems.filter((item) => item.status === "ready").map((item) => item.id);
-    expect(ready.sort()).toEqual(["chat", "home", "settings"]);
+    expect(ready.sort()).toEqual(["chat", "home", "notes", "projects", "settings", "tasks"]);
   });
 
   it("throws for unknown ids", () => {
