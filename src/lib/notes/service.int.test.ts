@@ -55,6 +55,16 @@ describe("note service (database)", () => {
     expect(await titles({ tag: "meeting" })).toEqual(["Standup"]);
   });
 
+  it("treats % and _ in a search as plain characters, not wildcards", async () => {
+    await createNote({ title: "Discount", content: "Save 100% today" });
+    await createNote({ title: "Snake", content: "snake_case names" });
+    await createNote({ title: "Other", content: "nothing special here" });
+    const titles = async (q: string) => (await listNotes({ q })).map((note) => note.title);
+    expect(await titles("%")).toEqual(["Discount"]);
+    expect(await titles("_")).toEqual(["Snake"]);
+    expect(await titles("100%")).toEqual(["Discount"]);
+  });
+
   it("returns excerpts in the list but full content only for a single note", async () => {
     const note = await createNote({ content: "# Heading\n\nBody text" });
     const [summary] = await listNotes();

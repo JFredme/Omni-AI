@@ -1,5 +1,6 @@
 import { ApiError } from "@/lib/api-error";
 import { prisma } from "@/lib/db";
+import { escapeLike } from "@/lib/search";
 import type { Prisma } from "@/generated/prisma/client";
 import { makeExcerpt } from "./logic";
 import type { FolderDto, NoteDto, NoteFilters, NotesMeta, NoteSummaryDto } from "./types";
@@ -30,8 +31,8 @@ export async function listNotes(filters: NoteFilters = {}): Promise<NoteSummaryD
   if (filters.q) {
     and.push({
       OR: [
-        { title: { contains: filters.q, mode: "insensitive" } },
-        { content: { contains: filters.q, mode: "insensitive" } },
+        { title: { contains: escapeLike(filters.q), mode: "insensitive" } },
+        { content: { contains: escapeLike(filters.q), mode: "insensitive" } },
         { tags: { has: filters.q.toLowerCase().replace(/^#/, "") } },
       ],
     });

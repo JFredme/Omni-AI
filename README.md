@@ -5,7 +5,7 @@ Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Prism
 
 ## Status
 
-This repository is at **Part 2: OpenRouter AI chat**.
+This repository is at **Part 3: Tasks, Notes, Projects, and AI integration**.
 
 | Area | Status |
 | --- | --- |
@@ -17,7 +17,11 @@ This repository is at **Part 2: OpenRouter AI chat**.
 | Usage tracking (tokens, cost, 30-day breakdown), monthly spending limit | Done |
 | Accounts and sign-in | Not started (see Security) |
 | File attachments, image input, tool calling, JSON mode, branching, memory | Not started |
-| Tasks, notes, calendar, projects, agents, knowledge, research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
+| Tasks (priorities, due dates, subtasks, tags, search, filters, sorting, Kanban board) | Done (Part 3) |
+| Notes (Markdown, autosave, folders, tags, search, pinning) | Done (Part 3) |
+| Projects (status, milestones, progress dashboards, linked tasks) | Done (Part 3) |
+| AI integration (break a project into tasks, project plans, note summaries, task priorities, organize tasks and notes), always confirm-before-apply | Done (Part 3) |
+| Calendar, agents, knowledge, research, code, automations, analytics | Not started (routes show a "Not built yet" page) |
 
 ## Requirements
 
@@ -69,12 +73,12 @@ You can instead set `OPENROUTER_API_KEY` in `.env`. The environment key is used 
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript without emitting files |
 | `npm test` | Unit and component tests (Vitest, no database needed) |
-| `npm run test:integration` | Chat service tests against a real Postgres database (see below) |
-| `npm run test:e2e` | Full browser suite: builds the app, starts a mock OpenRouter server, runs the smoke and chat tests |
+| `npm run test:integration` | Chat, task, note, project, and AI service tests against a real Postgres database (see below) |
+| `npm run test:e2e` | Full browser suite: builds the app, starts a mock OpenRouter server, runs the smoke, chat, and productivity tests |
 
 ### Integration tests
 
-`npm run test:integration` runs the chat service against a real database, with only the OpenRouter HTTP calls mocked. Create a test database first:
+`npm run test:integration` runs the chat, task, note, project, and AI services against a real database, with only the OpenRouter HTTP calls mocked. Create a test database first:
 
 ```bash
 createdb omni_ai_test
@@ -88,8 +92,32 @@ The script applies migrations to `TEST_DATABASE_URL` (default `postgresql://USER
 
 - `e2e/smoke.mjs`: shell, routing, themes, responsive layout, and the 404 page.
 - `e2e/chat.mjs`: saving and testing a key (valid and invalid), the model picker, streaming, stop, mid-stream errors, persistence across reloads, renaming, the spending limit, usage totals, and deletion.
+- `e2e/productivity.mjs`: tasks (create, validate, subtasks, filter, search, sort, board drag-and-drop, delete), notes (autosave, reload persistence, Markdown preview, folders, tags, pinning, search), projects (milestones, progress, deletion), every AI action including that nothing is saved before confirmation, usage recording, the missing-key and spending-limit errors, and a phone-width layout check.
 
-The mock OpenRouter server in `e2e/mock-openrouter.mjs` follows the documented request and response formats. It is not the live OpenRouter service. To check against the live API, run the app with a real key and try a message.
+The mock OpenRouter server in `e2e/mock-openrouter.mjs` follows the documented request and response formats. For the planning assistant it returns JSON built from the ids in the prompt, so the AI flows run against real records. It is not the live OpenRouter service, and it does not show how a particular real model behaves with the JSON prompts. To check against the live API, run the app with a real key and try a message.
+
+## Tasks, notes, and projects
+
+- **Tasks** (`/tasks`): create, edit, complete, and delete tasks with a priority (low to urgent), due date, tags, a project and milestone, and one level of subtasks. Search (title, description, tags, subtask titles), filter by status, priority, project, tag, or due date (overdue, today, next 7 days, none), and sort by manual order, due date, priority, newest, recently updated, or title. The **Board** view has To do, In progress, and Done columns. Drag a card to move or reorder it, or use the card's "move" menu, which also works on touch screens and with a keyboard.
+- **Notes** (`/notes`): Markdown notes with Write, Preview, and Split modes. Title, text, and tags **autosave** shortly after you stop typing. The status line shows saving and failures, a failed save keeps your text and offers Retry, and the browser warns before you leave with unsaved changes. Organize with folders, tags, pinning, and search. Raw HTML in notes is not rendered.
+- **Projects** (`/projects`): projects have a description, status (planning, active, on hold, completed, archived), and an optional due date. Each project's dashboard shows progress (done tasks as a share of its top-level tasks), overdue tasks, milestones with their own task progress, and its linked tasks. Deleting a project keeps its tasks (they become unassigned) and removes its milestones. Deleting a milestone keeps its tasks.
+
+### AI assistance
+
+The assistant uses the same OpenRouter key, default model, spending limit, and usage tracking as chat. It needs a saved or environment key and a default model (Settings or AI Chat), and shows a link to Settings when either is missing.
+
+| Where | Action | What it proposes |
+| --- | --- | --- |
+| Project dashboard | Break into tasks | New tasks (with priorities, optional dates, tags, and subtasks) |
+| Project dashboard | Generate plan | Milestones plus tasks assigned to them |
+| Note editor | Summarize | A summary, key points, and suggested tags to insert at the top of the note |
+| Tasks | Suggest priorities | Priority changes for open tasks, each with a reason |
+| Tasks | Organize | Moving tasks into existing projects and adding tags |
+| Notes | Organize | Filing notes into folders (existing or new) and adding tags |
+
+**Nothing is saved until you confirm.** Each action first shows a review dialog; every item has a checkbox, and only ticked items are sent to `POST /api/ai/apply` (the summary is inserted into the note after you edit or accept it). Discarding saves nothing. Model output is treated as untrusted: ids must match real records, priorities, dates, and tags are validated, duplicates and no-op changes are dropped, and applying the same plan twice does not create duplicate tasks. Note, task, and project text is passed to the model inside `<data>` blocks with instructions to treat it as data.
+
+The model is asked for JSON and the reply is validated; if it isn't usable you see a specific error and can retry (the attempt still appears in usage). Each AI request is recorded in usage like a chat reply.
 
 ## Keyboard shortcuts
 
@@ -103,15 +131,16 @@ The mock OpenRouter server in `e2e/mock-openrouter.mjs` follows the documented r
 
 ## Data and privacy
 
-- **Stored in PostgreSQL:** settings (including the encrypted OpenRouter key, default model, favorites, and monthly limit), conversations, messages, and one usage record per reply attempt.
+- **Stored in PostgreSQL:** settings (including the encrypted OpenRouter key, default model, favorites, and monthly limit), conversations, messages, one usage record per reply or AI request, tasks, projects, milestones, notes, and note folders.
 - **Stored in the browser:** the theme and sidebar state, in `localStorage`.
-- **Sent to OpenRouter:** the conversation history for each request, plus any system instructions you set for that conversation.
+- **Sent to OpenRouter:** the conversation history for each chat request, plus any system instructions you set for that conversation. When you use an AI action, the relevant content is sent: the project's name, description, milestones, and task titles; the text of the note you summarize; titles, descriptions, due dates, and tags of up to 60 open tasks for priorities and organizing; and titles, short excerpts, folders, and tags of up to 60 notes for organizing. Notes are truncated to their first 24,000 characters for summaries.
 - **Never returned to the browser:** the OpenRouter key. The Settings page shows only its last four characters.
 - Deleting a conversation removes its messages. Its usage records are kept so totals stay accurate.
+- Deleting a task removes its subtasks. Deleting a folder keeps its notes. Deleting a project or milestone keeps its tasks.
 
 ## Security
 
-- **There is no sign-in yet.** Every API route is unauthenticated, so anyone who can reach the server can read your conversations and spend against your saved key. The dev and start scripts bind to `127.0.0.1` for this reason. Don't expose the server to a network until accounts are added.
+- **There is no sign-in yet.** Every API route is unauthenticated, so anyone who can reach the server can read your conversations, tasks, notes, and projects, and spend against your saved key. The dev and start scripts bind to `127.0.0.1` for this reason. Don't expose the server to a network until accounts are added.
 - Model output is rendered as Markdown without raw HTML, and links open in a new tab with `rel="noopener noreferrer"`.
 - Server errors return a generic message. Details go to the server log.
 
@@ -119,15 +148,20 @@ The mock OpenRouter server in `e2e/mock-openrouter.mjs` follows the documented r
 
 ```
 prisma/
-  schema.prisma       Data model (settings, conversations, messages, usage)
+  schema.prisma       Data model (settings, conversations, messages, usage, tasks, projects, milestones, notes, folders)
   migrations/         SQL migrations
 src/
   app/
-    (app)/            Shell routes: dashboard, chat, settings, roadmap pages
-    api/              Route handlers: settings, models, conversations, messages, usage
+    (app)/            Shell routes: dashboard, chat, tasks, notes, projects, settings, roadmap pages
+    api/              Route handlers: settings, models, conversations, messages, usage, tasks, notes, projects, milestones, ai
   components/
     chat/             Chat workspace, transcript, composer, conversation list, model hook
     settings/         OpenRouter key, models, budget and usage cards
+    tasks/            Tasks workspace, list, Kanban board, task dialog
+    notes/            Notes workspace and Markdown editor with autosave
+    projects/         Project list, dashboard, project and milestone dialogs
+    ai/               Review dialog for AI proposals (confirm-before-apply)
+    ui/               Buttons, inputs, dialog, tag input, empty and error states
     model-picker.tsx  Searchable model selector
   lib/
     chat/             Chat service (turns, persistence, history), SSE stream, types
@@ -135,6 +169,11 @@ src/
     crypto.ts         AES-256-GCM encryption for stored secrets
     settings.ts       Settings and key resolution
     usage.ts          Usage summaries and monthly spend
+    tasks/            Task service, validation, board ordering
+    notes/            Note and folder service, validation, Markdown helpers
+    projects/         Project and milestone service, validation, progress logic
+    ai/               Proposal prompts, JSON runner, sanitizers, and apply (all through OpenRouter)
+    client/           Browser helpers: API client, autosave hook
 e2e/                  Browser tests and the mock OpenRouter server
 scripts/              Test runners and the test-data helper
 ```

@@ -2,6 +2,7 @@ import { ApiError } from "@/lib/api-error";
 import { prisma } from "@/lib/db";
 import { addDays, dateKeyToDate, dateToDateKey, localDateKey } from "@/lib/dates";
 import { POSITION_STEP } from "@/lib/ordering";
+import { escapeLike } from "@/lib/search";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CreateTaskInput, UpdateTaskInput } from "./schemas";
 import type { TaskDto, TaskFilters, TaskSort } from "./types";
@@ -62,12 +63,12 @@ export function buildTaskWhere(filters: TaskFilters, today: string): Prisma.Task
   if (filters.projectId) and.push({ projectId: filters.projectId === "none" ? null : filters.projectId });
   if (filters.tag) and.push({ tags: { has: filters.tag.toLowerCase() } });
   if (filters.q) {
-    const q = filters.q;
+    const q = escapeLike(filters.q);
     and.push({
       OR: [
         { title: { contains: q, mode: "insensitive" } },
         { description: { contains: q, mode: "insensitive" } },
-        { tags: { has: q.toLowerCase().replace(/^#/, "") } },
+        { tags: { has: filters.q.toLowerCase().replace(/^#/, "") } },
         { subtasks: { some: { title: { contains: q, mode: "insensitive" } } } },
       ],
     });

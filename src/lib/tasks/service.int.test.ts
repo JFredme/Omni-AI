@@ -61,6 +61,15 @@ describe("task service (database)", () => {
     expect(await titles({ due: "none" })).toEqual(["Someday"]);
   });
 
+  it("treats % and _ in a search as plain characters, not wildcards", async () => {
+    await createTask({ title: "Save 100% of the budget" });
+    await createTask({ title: "snake_case rename" });
+    await createTask({ title: "Plain task" });
+    const titles = async (q: string) => (await listTasks({ q }, TODAY)).map((task) => task.title);
+    expect(await titles("%")).toEqual(["Save 100% of the budget"]);
+    expect(await titles("_")).toEqual(["snake_case rename"]);
+  });
+
   it("matches a search on a subtask title and returns the parent", async () => {
     const parent = await createTask({ title: "Launch" });
     await createTask({ title: "Write press release", parentId: parent.id });
