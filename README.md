@@ -252,6 +252,10 @@ An automation is one **trigger** and an ordered list of **steps**. It is built o
 
 Open **Analytics** for 7, 30, or 90 days of your own data: tasks created and finished per day (with median time to finish, and counts by priority and project), calendar hours versus hours set aside for tasks, AI spend and requests per day with a per-model table and the month against your limit, and activity counts (conversations, notes, documents, reports, agent and automation runs). Days follow your browser's time zone. Nothing is estimated: requests the provider didn't report a cost for are counted and called out rather than priced.
 
+## Command bar
+
+**Ctrl/Cmd+K** opens the command bar. It searches pages and actions, and whatever you type is also offered as **Ask AI** (puts it in the chat box for you to send, nothing is sent for you), **Add task**, or **Add note**. These are fixed commands, not an AI guessing what you meant, so nothing happens that you didn't pick.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |

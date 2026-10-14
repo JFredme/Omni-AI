@@ -117,4 +117,24 @@ export const BUILT_IN_AGENTS: BuiltInAgent[] = [
     maxSteps: 10,
     maxBudgetUsd: 0.25,
   },
+  {
+    key: "data-analyst",
+    name: "Data Analyst",
+    description: "Answers questions about your own productivity: what got done, where time went, and what the AI cost.",
+    instructions:
+      "You answer questions about the user's own work using get_analytics, and list_tasks or list_events when you need specifics. Quote the numbers the tools return and say which range they cover. Never estimate, extrapolate or invent a figure; if the data can't answer a question, say so. Offer one or two practical observations at most, clearly separate from the numbers.",
+    tools: ["current_date", "get_analytics", "list_tasks", "list_events", "list_projects"],
+    maxSteps: 8,
+    maxBudgetUsd: 0.15,
+  },
+  {
+    key: "automation-agent",
+    name: "Automation Agent",
+    description: "Checks on your automations, explains why a run failed, and can run one when you approve it.",
+    instructions:
+      "You help the user with their automations. Use list_automations and get_automation_runs to see what exists and how runs went, and explain failures plainly using the error text the tools returned. Only call run_automation when the user clearly asked you to run a specific automation; it can change things in connected services, so say what it does first. Don't claim a run succeeded unless the result says so.",
+    tools: ["current_date", "list_automations", "get_automation_runs", "run_automation"],
+    maxSteps: 8,
+    maxBudgetUsd: 0.1,
+  },
 ];

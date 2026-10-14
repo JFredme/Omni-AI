@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { CHAT_DRAFT_EVENT, CHAT_DRAFT_KEY } from "@/lib/chat/draft";
 import { ArrowUp, FileText, Image as ImageIcon, Loader2, Paperclip, Square, X } from "lucide-react";
 import type { AttachmentDto } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,24 @@ export function Composer({
   const [attachError, setAttachError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // The command bar's "Ask AI" leaves a draft here. It fills the box but is never sent for you.
+  useEffect(() => {
+    function takeDraft() {
+      try {
+        const draft = sessionStorage.getItem(CHAT_DRAFT_KEY);
+        if (!draft) return;
+        sessionStorage.removeItem(CHAT_DRAFT_KEY);
+        setValue(draft);
+        textareaRef.current?.focus();
+      } catch {
+        // Storage can be blocked; the box just stays empty.
+      }
+    }
+    takeDraft();
+    window.addEventListener(CHAT_DRAFT_EVENT, takeDraft);
+    return () => window.removeEventListener(CHAT_DRAFT_EVENT, takeDraft);
+  }, []);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   async function attach(files: File[]) {

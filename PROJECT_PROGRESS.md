@@ -31,14 +31,14 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 | Memory: add/edit/search/export/delete, global on/off, "Remember this" in chat; RAG in chat with saved, numbered citations; agent tools `search_knowledge`, `search_memory`, `remember`; Document Analyst agent | done |
 | Analytics: `/api/analytics` (tasks per day, median time to finish, priority/project split, scheduled vs focus hours, AI spend by day and model, activity counts; days follow the viewer's time zone) and the `/analytics` page with 7/30/90 day ranges | done |
 | Docker: `Dockerfile`, `docker-compose.yml` (Postgres 16 + app, migrations on start), `.dockerignore`. **Never built or run here (no Docker installed)** | written, unverified |
+| Command bar quick actions (Ask AI prefill, Add task, Add note) and Data Analyst / Automation Agent with `get_analytics`, `list_automations`, `get_automation_runs`, `run_automation` (write, needs approval) | done |
 
 ## Not built yet (in roadmap order)
 - **Chat still missing:** tool calling inside a chat (agents cover tools).
 - **Tasks/notes extras:** recurring tasks, dependencies, backlinks, rich-text editor, activity history, AI note rewriting, smart scheduling.
 - **Google Calendar sync** (needs a Google OAuth client; calendar itself and .ics import/export are done).
-- **Universal AI command bar** (⌘K currently searches and navigates; natural-language commands are not built).
+- **Command bar understanding free-form requests** ("move my meeting to Friday"). ⌘K now searches/navigates and offers Ask AI (fills the chat box), Add task, Add note for typed text; there is no AI interpreting commands.
 - **Security still open:** none of the listed items; uploads are validated (extension, magic bytes, size, text-only decoding) and never stored or served. Re-audit when attachments and integrations land.
-- Built-in agents still missing (they need tools that don't exist yet): Data Analyst, Automation.
 
 ## Design notes worth knowing
 - `src/lib/ai/run.ts` `runAiJson` is the single non-streaming AI entry point (JSON in, validated JSON out, usage recorded, `onUsage` callback). Agents and AI proposals both use it.

@@ -2,7 +2,7 @@
 // and an installed Chrome. Set OMNI_BASE_URL to override the default http://localhost:3000.
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
-import { addSession } from "./session.mjs";
+import { addSession, retryingFetch, sessionHeaders } from "./session.mjs";
 
 const baseUrl = process.env.OMNI_BASE_URL ?? "http://localhost:3000";
 const screenshotDir = process.env.OMNI_SCREENSHOT_DIR;
@@ -60,6 +60,42 @@ try {
     await desktop.keyboard.press("Enter");
     await desktop.waitForURL(`${baseUrl}/tasks`);
     await desktop.getByRole("heading", { name: "Tasks", level: 1 }).waitFor();
+  });
+
+  // The shortcut only works once the page has hydrated, so press it again until the palette appears.
+  async function openPalette() {
+    const dialog = desktop.getByRole("dialog", { name: "Command palette" });
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await desktop.keyboard.press(`${modifier}+k`);
+      if (await dialog.waitFor({ timeout: 1500 }).then(() => true, () => false)) return dialog;
+    }
+    throw new Error("The command palette never opened.");
+  }
+
+  await check("command bar adds a task from typed text, and 'Ask AI' only fills the chat box", async () => {
+    await desktop.goto(`${baseUrl}/`);
+    const first = await openPalette();
+    await first.getByRole("combobox").fill("Renew passport qzx");
+    await desktop.getByRole("option", { name: "Add task: Renew passport qzx" }).click();
+    await desktop.waitForURL(`${baseUrl}/tasks`);
+    await desktop.getByText("Renew passport qzx").first().waitFor();
+
+    const second = await openPalette();
+    await second.getByRole("combobox").fill("what is due this week qzx");
+    await desktop.getByRole("option", { name: /Ask AI: what is due this week qzx/ }).click();
+    await desktop.waitForURL(`${baseUrl}/chat`);
+    await waitFor(async () => (await desktop.locator("textarea").first().inputValue()) === "what is due this week qzx");
+    assert.equal(await desktop.getByText("what is due this week qzx").count() > 0, true);
+
+    // Nothing was sent: no conversation was created.
+    const conversations = await (await retryingFetch(`${baseUrl}/api/conversations`, { headers: sessionHeaders() })).json();
+    assert.equal(conversations.conversations.length, 0);
+
+    // Later suites expect an empty task list, so remove the task this check made.
+    const tasks = await (await retryingFetch(`${baseUrl}/api/tasks`, { headers: sessionHeaders() })).json();
+    for (const task of tasks.tasks.filter((t) => t.title === "Renew passport qzx")) {
+      await retryingFetch(`${baseUrl}/api/tasks/${task.id}`, { method: "DELETE", headers: sessionHeaders({ Origin: baseUrl }) });
+    }
   });
 
   await check("analytics page loads real numbers and switches range", async () => {

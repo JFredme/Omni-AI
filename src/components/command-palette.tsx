@@ -2,8 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CornerDownLeft, Monitor, Moon, PanelLeftClose, Sun, type LucideIcon } from "lucide-react";
+import { CheckSquare, CornerDownLeft, MessageSquare, Monitor, Moon, PanelLeftClose, StickyNote, Sun, type LucideIcon } from "lucide-react";
 import { useTheme } from "next-themes";
+import { leaveChatDraft } from "@/lib/chat/draft";
+import { apiRequest } from "@/lib/client/api";
 import { filterCommands } from "@/lib/command";
 import { navItems } from "@/lib/navigation";
 import { toggleSidebarCollapsed } from "@/lib/sidebar-store";
@@ -15,7 +17,7 @@ interface PaletteCommand {
   group: string;
   keywords?: string;
   icon: LucideIcon;
-  run: () => void;
+  run: () => void | Promise<void>;
 }
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
@@ -24,6 +26,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const listId = useId();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
   const commands: PaletteCommand[] = [
@@ -69,16 +73,35 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     },
   ];
 
-  const results = filterCommands(commands, query);
+  // Typing something offers to do it: ask the AI (fills the chat box, never sends), or add it as a task or a note.
+  const text = query.trim();
+  const typed: PaletteCommand[] = text
+    ? [
+        { id: "do-ask", label: `Ask AI: ${text}`, group: "Do this", icon: MessageSquare, run: () => { leaveChatDraft(text); router.push("/chat"); } },
+        { id: "do-task", label: `Add task: ${text}`, group: "Do this", icon: CheckSquare, run: async () => { await apiRequest("/api/tasks", { json: { title: text.slice(0, 200) } }); router.push("/tasks"); } },
+        { id: "do-note", label: `Add note: ${text}`, group: "Do this", icon: StickyNote, run: async () => { const made = await apiRequest<{ note: { id: string } }>("/api/notes", { json: { title: text.slice(0, 200) } }); router.push(`/notes/${made.note.id}`); } },
+      ]
+    : [];
+  const results = [...filterCommands(commands, query), ...typed];
   const optionId = (index: number) => `${listId}-option-${index}`;
 
   useEffect(() => {
     activeRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [activeIndex]);
 
-  function runCommand(command: PaletteCommand) {
-    onClose();
-    command.run();
+  async function runCommand(command: PaletteCommand) {
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await command.run();
+      onClose();
+    } catch (caught) {
+      // Stay open so what was typed isn't lost.
+      setError(caught instanceof Error ? caught.message : "That didn't work.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -97,7 +120,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       event.preventDefault();
       const command = results[activeIndex];
       if (command) {
-        runCommand(command);
+        void runCommand(command);
       }
     } else if (event.key === "Tab") {
       event.preventDefault();
@@ -129,7 +152,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             aria-controls={listId}
             aria-activedescendant={results[activeIndex] ? optionId(activeIndex) : undefined}
             aria-autocomplete="list"
-            placeholder="Search pages and actions…"
+            placeholder="Search, or type something to ask or add…"
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -141,6 +164,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             Esc
           </kbd>
         </div>
+
+        {error ? (
+          <p role="alert" className="border-b border-border px-4 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <div
           id={listId}
@@ -172,7 +201,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     aria-selected={active}
                     tabIndex={-1}
                     onMouseMove={() => setActiveIndex(index)}
-                    onClick={() => runCommand(command)}
+                    onClick={() => void runCommand(command)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                       active ? "bg-accent text-accent-foreground" : "text-foreground",

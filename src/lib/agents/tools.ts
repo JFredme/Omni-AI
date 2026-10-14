@@ -381,6 +381,54 @@ export const TOOLS: ToolDef[] = [
       return { answer: await context.delegate(agent, objective) };
     },
   }),
+  tool({
+    name: "get_analytics",
+    description: "Counts from the user's own data over the last 7, 30 or 90 days: tasks created and finished, open and overdue, median days to finish, calendar and focus hours, AI spend and requests, and activity. Exact numbers, not estimates.",
+    risk: "read",
+    usage: '{ "days"?: 7 | 30 | 90 (default 30), "timezone"?: IANA zone name (default UTC) }',
+    args: z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90)]).optional(), timezone: z.string().max(64).optional() }),
+    run: async ({ days, timezone }) => {
+      const { getAnalytics } = await import("@/lib/analytics/service");
+      const { isValidTimeZone } = await import("@/lib/calendar/tz");
+      const a = await getAnalytics({ days: days ?? 30, timeZone: timezone && isValidTimeZone(timezone) ? timezone : "UTC" });
+      // The per-day series are summarized by their totals; the agent can ask for a shorter range to see more detail.
+      return { range: { from: a.from, to: a.to, timezone: a.timezone }, tasks: { totals: a.tasks.totals, medianDaysToComplete: a.tasks.medianDaysToComplete, completedPerCreated: a.tasks.completedPerCreated, byPriority: a.tasks.byPriority, byProject: a.tasks.byProject.slice(0, 15) }, time: { totalScheduledHours: a.time.totalScheduledHours, totalFocusHours: a.time.totalFocusHours }, ai: { totals: a.ai.totals, month: a.ai.month, byModel: a.ai.byModel.slice(0, 10) }, activity: a.activity };
+    },
+  }),
+  tool({
+    name: "list_automations",
+    description: "List the user's automations with their trigger, whether they are on, and how the last run went.",
+    risk: "read",
+    usage: "{}",
+    args: z.object({}),
+    run: async () => {
+      const { listWorkflows } = await import("@/lib/automations/service");
+      return { automations: (await listWorkflows()).slice(0, 50).map((w) => ({ id: w.id, name: w.name, description: w.description, enabled: w.enabled, trigger: w.trigger.type, steps: w.steps.length, lastRunAt: w.lastRunAt, lastRunStatus: w.lastRunStatus, nextRunAt: w.nextRunAt })) };
+    },
+  }),
+  tool({
+    name: "get_automation_runs",
+    description: "Recent runs of automations, newest first, with each step's outcome. Pass an automation id to see only its runs.",
+    risk: "read",
+    usage: '{ "automationId"?: id, "limit"?: 1-20 (default 5) }',
+    args: z.object({ automationId: id.optional(), limit: z.number().int().min(1).max(20).optional() }),
+    run: async ({ automationId, limit }) => {
+      const { listRuns } = await import("@/lib/automations/service");
+      const runs = await listRuns(automationId ?? null, limit ?? 5);
+      return { runs: runs.map((r) => ({ id: r.id, automation: r.workflowName, status: r.status, trigger: r.triggerType, error: r.error, startedAt: r.startedAt, finishedAt: r.finishedAt, steps: r.steps.map((step) => ({ status: step.status, error: step.error ?? undefined })) })) };
+    },
+  }),
+  tool({
+    name: "run_automation",
+    description: "Run one of the user's automations now, as a manual run. It does whatever that automation's steps do, which can include changing things in connected services.",
+    risk: "write",
+    usage: '{ "automationId": id }',
+    args: z.object({ automationId: id }),
+    run: async ({ automationId }) => {
+      const { runWorkflow } = await import("@/lib/automations/engine");
+      return runWorkflow(automationId, { type: "manual", data: {} });
+    },
+  }),
   ...INTEGRATION_TOOLS,
 ];
 
