@@ -1,11 +1,14 @@
 import { z, type ZodType } from "zod";
 import { dateKeySchema, localDateKey } from "@/lib/dates";
-import { createNote, getNote, listNotes, updateNote } from "@/lib/notes/service";
 import { MAX_NOTE_CONTENT } from "@/lib/notes/schemas";
-import { createMilestone, createProject, getProject, listProjects } from "@/lib/projects/service";
 import { tagsSchema } from "@/lib/tags";
-import { createTask, listTasks, updateTask } from "@/lib/tasks/service";
-import { DUE_FILTERS, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/tasks/types";
+import { DUE_FILTERS, TASK_PRIORITIES, TASK_STATUSES, type TaskDto } from "@/lib/tasks/types";
+
+// The services create the database client when they load. They are imported only when a tool runs, so this
+// file (the tool list and argument schemas) can be used and tested without a database.
+const tasks = () => import("@/lib/tasks/service");
+const notes = () => import("@/lib/notes/service");
+const projects = () => import("@/lib/projects/service");
 
 export interface ToolContext {
   runId: string;
@@ -35,7 +38,7 @@ function tool<A>(
 const id = z.string().trim().min(1).max(60);
 const priority = z.enum(TASK_PRIORITIES);
 
-const compactTask = (task: Awaited<ReturnType<typeof listTasks>>[number]) => ({
+const compactTask = (task: TaskDto) => ({
   id: task.id,
   title: task.title,
   status: task.status,
@@ -68,7 +71,7 @@ export const TOOLS: ToolDef[] = [
       projectId: id.optional(),
       due: z.enum(DUE_FILTERS).optional(),
     }),
-    run: async (args) => (await listTasks(args)).slice(0, 40).map(compactTask),
+    run: async (args) => (await (await tasks()).listTasks(args)).slice(0, 40).map(compactTask),
   }),
   tool({
     name: "create_task",
@@ -84,7 +87,7 @@ export const TOOLS: ToolDef[] = [
       tags: tagsSchema.optional(),
       projectId: id.optional(),
     }),
-    run: async (args) => compactTask(await createTask(args)),
+    run: async (args) => compactTask(await (await tasks()).createTask(args)),
   }),
   tool({
     name: "update_task",
@@ -101,7 +104,7 @@ export const TOOLS: ToolDef[] = [
       dueDate: dateKeySchema.nullable().optional(),
       tags: tagsSchema.optional(),
     }),
-    run: async ({ taskId, ...patch }) => compactTask(await updateTask(taskId, patch)),
+    run: async ({ taskId, ...patch }) => compactTask(await (await tasks()).updateTask(taskId, patch)),
   }),
   tool({
     name: "list_projects",
@@ -110,7 +113,7 @@ export const TOOLS: ToolDef[] = [
     usage: "{}",
     args: z.object({}),
     run: async () =>
-      (await listProjects()).map((project) => ({
+      (await (await projects()).listProjects()).map((project) => ({
         id: project.id,
         name: project.name,
         status: project.status,
@@ -127,7 +130,7 @@ export const TOOLS: ToolDef[] = [
     usage: '{ "projectId": id }',
     args: z.object({ projectId: id }),
     run: async ({ projectId }) => {
-      const project = await getProject(projectId);
+      const project = await (await projects()).getProject(projectId);
       return {
         id: project.id,
         name: project.name,
@@ -150,7 +153,7 @@ export const TOOLS: ToolDef[] = [
       dueDate: dateKeySchema.optional(),
     }),
     run: async (args) => {
-      const project = await createProject(args);
+      const project = await (await projects()).createProject(args);
       return { id: project.id, name: project.name };
     },
   }),
@@ -161,7 +164,7 @@ export const TOOLS: ToolDef[] = [
     usage: '{ "projectId": id, "title": text, "dueDate"?: "YYYY-MM-DD" }',
     args: z.object({ projectId: id, title: z.string().trim().min(1).max(160), dueDate: dateKeySchema.optional() }),
     run: async ({ projectId, ...input }) => {
-      const milestone = await createMilestone(projectId, input);
+      const milestone = await (await projects()).createMilestone(projectId, input);
       return { id: milestone.id, title: milestone.title };
     },
   }),
@@ -172,7 +175,7 @@ export const TOOLS: ToolDef[] = [
     usage: '{ "q"?: text, "tag"?: text }',
     args: z.object({ q: z.string().max(200).optional(), tag: z.string().max(60).optional() }),
     run: async (args) =>
-      (await listNotes(args)).slice(0, 20).map((note) => ({ id: note.id, title: note.title || "Untitled", excerpt: note.excerpt, tags: note.tags })),
+      (await (await notes()).listNotes(args)).slice(0, 20).map((note) => ({ id: note.id, title: note.title || "Untitled", excerpt: note.excerpt, tags: note.tags })),
   }),
   tool({
     name: "read_note",
@@ -181,7 +184,7 @@ export const TOOLS: ToolDef[] = [
     usage: '{ "noteId": id }',
     args: z.object({ noteId: id }),
     run: async ({ noteId }) => {
-      const note = await getNote(noteId);
+      const note = await (await notes()).getNote(noteId);
       return { id: note.id, title: note.title, tags: note.tags, content: note.content.slice(0, 6_000), truncated: note.content.length > 6_000 };
     },
   }),
@@ -192,7 +195,7 @@ export const TOOLS: ToolDef[] = [
     usage: '{ "title": text, "content": markdown, "tags"?: [text] }',
     args: z.object({ title: z.string().trim().max(200), content: z.string().max(MAX_NOTE_CONTENT), tags: tagsSchema.optional() }),
     run: async (args) => {
-      const note = await createNote(args);
+      const note = await (await notes()).createNote(args);
       return { id: note.id, title: note.title };
     },
   }),
@@ -203,10 +206,11 @@ export const TOOLS: ToolDef[] = [
     usage: '{ "noteId": id, "text": markdown }',
     args: z.object({ noteId: id, text: z.string().min(1).max(50_000) }),
     run: async ({ noteId, text }) => {
-      const note = await getNote(noteId);
+      const service = await notes();
+      const note = await service.getNote(noteId);
       const content = `${note.content}${note.content.endsWith("\n") || !note.content ? "" : "\n"}\n${text}`;
       if (content.length > MAX_NOTE_CONTENT) throw new Error("The note would become too long.");
-      await updateNote(noteId, { content });
+      await service.updateNote(noteId, { content });
       return { id: noteId, appended: text.length };
     },
   }),

@@ -6,15 +6,27 @@ export const MAX_AGENT_BUDGET_USD = 5;
 
 const toolName = z.string().refine((name) => TOOLS.some((tool) => tool.name === name), { message: "is not a known tool" });
 
+// Plain fields (no defaults). Updates use these as-is so a PATCH only changes what it names; creation adds defaults.
 const agentFields = {
   name: z.string().trim().min(1, "Give the agent a name").max(80),
-  description: z.string().trim().max(500).default(""),
-  instructions: z.string().max(8_000).default(""),
-  modelId: z.string().trim().min(1).max(200).nullable().default(null),
-  tools: z.array(toolName).max(TOOLS.length).default([]),
-  approvalTools: z.array(toolName).max(TOOLS.length).default([]),
-  maxSteps: z.number().int().min(1).max(MAX_AGENT_STEPS).default(10),
-  maxBudgetUsd: z.number().min(0.01).max(MAX_AGENT_BUDGET_USD).default(0.25),
+  description: z.string().trim().max(500),
+  instructions: z.string().max(8_000),
+  modelId: z.string().trim().min(1).max(200).nullable(),
+  tools: z.array(toolName).max(TOOLS.length),
+  approvalTools: z.array(toolName).max(TOOLS.length),
+  maxSteps: z.number().int().min(1).max(MAX_AGENT_STEPS),
+  maxBudgetUsd: z.number().min(0.01).max(MAX_AGENT_BUDGET_USD),
+};
+
+const agentDefaults = {
+  ...agentFields,
+  description: agentFields.description.default(""),
+  instructions: agentFields.instructions.default(""),
+  modelId: agentFields.modelId.default(null),
+  tools: agentFields.tools.default([]),
+  approvalTools: agentFields.approvalTools.default([]),
+  maxSteps: agentFields.maxSteps.default(10),
+  maxBudgetUsd: agentFields.maxBudgetUsd.default(0.25),
 };
 
 function approvalsAreTools(value: { tools: string[]; approvalTools: string[] }, context: z.RefinementCtx) {
@@ -25,7 +37,7 @@ function approvalsAreTools(value: { tools: string[]; approvalTools: string[] }, 
   }
 }
 
-export const createAgentSchema = z.object(agentFields).superRefine(approvalsAreTools);
+export const createAgentSchema = z.object(agentDefaults).superRefine(approvalsAreTools);
 
 export const updateAgentSchema = z
   .object(agentFields)

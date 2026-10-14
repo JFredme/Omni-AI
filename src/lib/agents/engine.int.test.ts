@@ -429,3 +429,31 @@ describe("agent management (database)", () => {
     expect(await prisma.agentRun.count({ where: { id: run.id } })).toBe(0);
   });
 });
+
+describe("agent updates (database)", () => {
+  it("a partial update changes only the fields it names", async () => {
+    const { updateAgentSchema } = await import("./schemas");
+    const created = await createAgent({
+      name: "Keeper",
+      description: "desc",
+      instructions: "Keep me",
+      modelId: "acme/x",
+      tools: ["list_tasks", "create_task"],
+      approvalTools: ["create_task"],
+      maxSteps: 7,
+      maxBudgetUsd: 0.4,
+    });
+    const patch = updateAgentSchema.parse({ name: "Renamed" });
+    const updated = await updateAgent(created.id, patch);
+    expect(updated).toMatchObject({
+      name: "Renamed",
+      description: "desc",
+      instructions: "Keep me",
+      modelId: "acme/x",
+      tools: ["list_tasks", "create_task"],
+      approvalTools: ["create_task"],
+      maxSteps: 7,
+      maxBudgetUsd: 0.4,
+    });
+  });
+});
