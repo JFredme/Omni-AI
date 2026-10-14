@@ -163,6 +163,66 @@
   }
 }
 
+/* Syntax highlighting for code blocks, drawn from the app palette so light and dark both read well. */
+:root {
+  --code-keyword: oklch(0.48 0.16 20);
+  --code-string: oklch(0.45 0.09 160);
+  --code-number: oklch(0.5 0.12 70);
+  --code-comment: oklch(0.58 0.01 80);
+  --code-title: oklch(0.42 0.12 250);
+}
+.dark {
+  --code-keyword: oklch(0.76 0.12 20);
+  --code-string: oklch(0.78 0.1 160);
+  --code-number: oklch(0.8 0.11 75);
+  --code-comment: oklch(0.62 0.01 80);
+  --code-title: oklch(0.78 0.1 250);
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-meta .hljs-keyword {
+  color: var(--code-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta .hljs-string {
+  color: var(--code-string);
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-variable.constant_,
+.hljs-link {
+  color: var(--code-number);
+}
+.hljs-comment,
+.hljs-quote,
+.hljs-deletion {
+  color: var(--code-comment);
+  font-style: italic;
+}
+.hljs-title,
+.hljs-section,
+.hljs-built_in,
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-function .hljs-title,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--code-title);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

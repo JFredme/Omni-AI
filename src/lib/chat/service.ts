@@ -7,6 +7,8 @@ import { estimateCostUsd } from "@/lib/openrouter/models";
 import { requireApiKey } from "@/lib/settings";
 import { assertWithinBudget } from "@/lib/usage";
 import { retrieveContext } from "@/lib/knowledge/context";
+import { attachmentPromptText, claimableAttachments, toAttachmentDto } from "./attachments";
+import { activePath, deepestLatest, pathTo, siblingsOf } from "./tree";
 import type { Citation } from "@/lib/knowledge/types";
 import {
   buildRequestMessages,
@@ -16,6 +18,8 @@ import {
   type RequestMessage,
 } from "./history";
 import type {
+  AttachmentDto,
+  BranchInfo,
   ConversationDetail,
   ConversationSummary,
   CostSource,
@@ -37,6 +41,8 @@ type MessageRow = {
   status: MessageStatus;
   error: string | null;
   citations?: unknown;
+  parentId?: string | null;
+  attachments?: { id: string; name: string; kind: string; mimeType: string; sizeBytes: number }[];
   modelId: string | null;
   createdAt: Date;
   usage: {
@@ -48,7 +54,7 @@ type MessageRow = {
   } | null;
 };
 
-function serializeMessage(row: MessageRow): MessageDto {
+function serializeMessage(row: MessageRow, branch?: BranchInfo): MessageDto {
   return {
     id: row.id,
     role: row.role,
@@ -57,6 +63,9 @@ function serializeMessage(row: MessageRow): MessageDto {
     error: row.error,
     modelId: row.modelId,
     citations: Array.isArray(row.citations) ? (row.citations as unknown as Citation[]) : null,
+    parentId: row.parentId ?? null,
+    attachments: (row.attachments ?? []).map((attachment): AttachmentDto => toAttachmentDto(attachment)),
+    branch: branch ?? { index: 0, count: 1, ids: [row.id] },
     createdAt: row.createdAt.toISOString(),
     usage: row.usage
       ? {
@@ -70,7 +79,9 @@ function serializeMessage(row: MessageRow): MessageDto {
   };
 }
 
-const messageInclude = { usage: true } as const;
+/** Attachment rows without the file bytes, which can be large. */
+const attachmentSelect = { select: { id: true, name: true, kind: true, mimeType: true, sizeBytes: true } } as const;
+const messageInclude = { usage: true, attachments: attachmentSelect } as const;
 
 export async function listConversations(): Promise<ConversationSummary[]> {
   const rows = await prisma.conversation.findMany({
@@ -120,6 +131,11 @@ export async function getConversation(id: string): Promise<ConversationDetail> {
     },
   });
   if (!row) throw new ApiError(404, "not_found", "That conversation no longer exists.");
+  const path = activePath(row.messages, row.leafId);
+  const shown = path.map((message) => {
+    const siblings = siblingsOf(row.messages, message);
+    return serializeMessage(message, { index: Math.max(0, siblings.findIndex((s) => s.id === message.id)), count: siblings.length, ids: siblings.map((s) => s.id) });
+  });
 
   const usage = await prisma.usageRecord.aggregate({
     where: { conversationId: id },
@@ -135,10 +151,11 @@ export async function getConversation(id: string): Promise<ConversationDetail> {
     title: row.title,
     modelId: row.modelId,
     systemPrompt: row.systemPrompt,
+    leafId: path.at(-1)?.id ?? null,
     messageCount: row._count.messages,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    messages: row.messages.map(serializeMessage),
+    messages: shown,
     usage: {
       requests: usage._count._all,
       totalTokens: usage._sum.totalTokens ?? 0,
@@ -171,7 +188,7 @@ export async function deleteConversation(id: string): Promise<void> {
 async function ensureConversation(id: string) {
   const row = await prisma.conversation.findUnique({
     where: { id },
-    select: { id: true, title: true, modelId: true, systemPrompt: true },
+    select: { id: true, title: true, modelId: true, systemPrompt: true, leafId: true },
   });
   if (!row) throw new ApiError(404, "not_found", "That conversation no longer exists.");
   return row;
@@ -203,22 +220,57 @@ async function assertIdle(conversationId: string) {
   if (busy) throw new ApiError(409, "generation_in_progress", "A reply is still being generated in this conversation.");
 }
 
-async function loadRequestHistory(conversationId: string): Promise<ChatMessageInput[]> {
+/** The model-ready history for the branch that ends at `leafId`: text, attached documents inlined, images as data URLs. */
+async function loadRequestHistory(conversationId: string, leafId: string | null): Promise<ChatMessageInput[]> {
   const rows = await prisma.message.findMany({
     where: { conversationId },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { role: true, content: true, status: true },
+    select: { id: true, parentId: true, role: true, content: true, status: true, createdAt: true },
   });
-  return rows.filter((row): row is ChatMessageInput & { role: "user" | "assistant" } => row.role !== "system");
+  const path = pathTo(rows, leafId).filter((row): row is typeof row & { role: "user" | "assistant" } => row.role !== "system");
+  if (path.length === 0) return [];
+  const attachments = await prisma.attachment.findMany({ where: { messageId: { in: path.map((row) => row.id) } }, orderBy: { createdAt: "asc" } });
+  return path.map((row) => {
+    const own = attachments.filter((attachment) => attachment.messageId === row.id);
+    const images = own.filter((a) => a.kind === "image").map((a) => `data:${a.mimeType};base64,${Buffer.from(a.data).toString("base64")}`);
+    return { role: row.role, status: row.status, content: row.content + attachmentPromptText(own), images };
+  });
+}
+
+/** Refuses image attachments for a model the catalog says can't read images. Unknown models are given the benefit of the doubt. */
+async function assertCanReadImages(modelId: string, apiKey: string, hasImages: boolean) {
+  if (!hasImages) return;
+  try {
+    const model = await findCatalogModel(modelId, apiKey);
+    if (model && !model.capabilities.imageInput) {
+      throw new ApiError(400, "model_cannot_read_images", `${model.name} can't read images. Choose a model that supports image input, or remove the image.`);
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+  }
+}
+
+/** The branch a new message continues: the conversation's saved leaf, or its newest message. */
+async function currentLeaf(conversationId: string, savedLeafId: string | null): Promise<string | null> {
+  if (savedLeafId && (await prisma.message.findFirst({ where: { id: savedLeafId, conversationId }, select: { id: true } }))) return savedLeafId;
+  const newest = await prisma.message.findFirst({ where: { conversationId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true } });
+  return newest?.id ?? null;
 }
 
 export async function prepareSend(
   conversationId: string,
-  input: { content: string; modelId?: string; useKnowledge?: boolean },
+  input: {
+    content: string;
+    modelId?: string;
+    useKnowledge?: boolean;
+    attachmentIds?: string[];
+    /** Edit: send this as a new version of the given user message, keeping the original as another branch. */
+    replaceMessageId?: string;
+  },
   signal?: AbortSignal,
 ): Promise<TurnPlan> {
   const content = input.content.trim();
-  if (!content) throw new ApiError(400, "empty_message", "Type a message before sending.");
+  const attachmentRows = await claimableAttachments(input.attachmentIds ?? []);
+  if (!content && attachmentRows.length === 0) throw new ApiError(400, "empty_message", "Type a message before sending.");
   if (content.length > MAX_USER_MESSAGE_CHARS) {
     throw new ApiError(400, "message_too_long", `Messages can be up to ${MAX_USER_MESSAGE_CHARS.toLocaleString()} characters.`);
   }
@@ -228,19 +280,33 @@ export async function prepareSend(
   const { key } = await requireApiKey();
   const modelId = await resolveModelId(conversation.modelId, input.modelId);
   await assertWithinBudget();
+  await assertCanReadImages(modelId, key, attachmentRows.some((row) => row.kind === "image"));
 
-  const history = await loadRequestHistory(conversationId);
-  const context = await retrieveContext(content, { useKnowledge: input.useKnowledge ?? false, signal });
+  let parentId: string | null;
+  if (input.replaceMessageId) {
+    const replaced = await prisma.message.findFirst({ where: { id: input.replaceMessageId, conversationId }, select: { role: true, parentId: true } });
+    if (!replaced || replaced.role !== "user") throw new ApiError(400, "cannot_edit", "Only your own messages can be edited.");
+    parentId = replaced.parentId;
+  } else {
+    parentId = await currentLeaf(conversationId, conversation.leafId);
+  }
+
+  const history = await loadRequestHistory(conversationId, parentId);
+  const text = content || "(see attached files)";
+  const context = await retrieveContext(text, { useKnowledge: input.useKnowledge ?? false, signal });
+  const images = attachmentRows.filter((row) => row.kind === "image").map((row) => `data:${row.mimeType};base64,${Buffer.from(row.data).toString("base64")}`);
   const requestMessages = buildRequestMessages({
     systemPrompt: [conversation.systemPrompt, context.prompt].filter(Boolean).join("\n\n") || null,
-    history: [...history, { role: "user", content, status: "complete" }],
+    history: [...history, { role: "user", content: text + attachmentPromptText(attachmentRows), status: "complete", images }],
   });
 
   const { user, assistant } = await prisma.$transaction(async (tx) => {
     const userRow = await tx.message.create({
-      data: { conversationId, role: "user", content, status: "complete" },
-      include: messageInclude,
+      data: { conversationId, role: "user", content, status: "complete", parentId },
     });
+    if (attachmentRows.length) {
+      await tx.attachment.updateMany({ where: { id: { in: attachmentRows.map((row) => row.id) } }, data: { messageId: userRow.id, conversationId } });
+    }
     const assistantRow = await tx.message.create({
       data: {
         conversationId,
@@ -248,6 +314,7 @@ export async function prepareSend(
         content: "",
         modelId,
         status: "streaming",
+        parentId: userRow.id,
         ...(context.citations.length ? { citations: context.citations as unknown as object } : {}),
       },
     });
@@ -255,11 +322,16 @@ export async function prepareSend(
       where: { id: conversationId },
       data: {
         modelId,
-        ...(conversation.title === DEFAULT_CONVERSATION_TITLE ? { title: deriveTitle(content) } : {}),
+        leafId: assistantRow.id,
+        ...(conversation.title === DEFAULT_CONVERSATION_TITLE ? { title: deriveTitle(content || attachmentRows[0]?.name || "") } : {}),
       },
     });
     return { user: userRow, assistant: assistantRow };
   });
+
+  const siblings = parentId
+    ? await prisma.message.findMany({ where: { parentId, role: "user" }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true } })
+    : await prisma.message.findMany({ where: { conversationId, parentId: null, role: "user" }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true } });
 
   return {
     conversationId,
@@ -267,58 +339,62 @@ export async function prepareSend(
     apiKey: key,
     requestMessages,
     assistantMessageId: assistant.id,
-    userMessage: serializeMessage({ ...user, usage: null }),
+    userMessage: serializeMessage(
+      { ...user, usage: null, attachments: attachmentRows.map((row) => ({ id: row.id, name: row.name, kind: row.kind, mimeType: row.mimeType, sizeBytes: row.sizeBytes })) },
+      { index: Math.max(0, siblings.findIndex((s) => s.id === user.id)), count: Math.max(1, siblings.length), ids: siblings.map((s) => s.id) },
+    ),
     citations: context.citations,
   };
 }
 
-export async function prepareRegenerate(conversationId: string, input: { modelId?: string; useKnowledge?: boolean }, signal?: AbortSignal): Promise<TurnPlan> {
+/**
+ * Generates another reply to the same message. The earlier reply is kept as an alternative the user can switch back to.
+ * `messageId` picks which assistant reply to redo; by default it is the end of the current branch.
+ */
+export async function prepareRegenerate(
+  conversationId: string,
+  input: { modelId?: string; useKnowledge?: boolean; messageId?: string },
+  signal?: AbortSignal,
+): Promise<TurnPlan> {
   const conversation = await ensureConversation(conversationId);
   await assertIdle(conversationId);
   const { key } = await requireApiKey();
 
-  const messages = await prisma.message.findMany({
-    where: { conversationId },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true, role: true, content: true, status: true },
-  });
-  const last = messages.at(-1);
-  if (!last) throw new ApiError(400, "nothing_to_regenerate", "There is no message to regenerate yet.");
+  const leafId = input.messageId ?? (await currentLeaf(conversationId, conversation.leafId));
+  const target = leafId ? await prisma.message.findFirst({ where: { id: leafId, conversationId }, select: { id: true, role: true, parentId: true } }) : null;
+  if (!target) throw new ApiError(400, "nothing_to_regenerate", "There is no message to regenerate yet.");
 
-  const replacedId = last.role === "assistant" ? last.id : null;
-  const history = replacedId ? messages.slice(0, -1) : messages;
-  if (history.at(-1)?.role !== "user") {
-    throw new ApiError(400, "nothing_to_regenerate", "Send a message before regenerating a reply.");
-  }
+  // Redoing an assistant reply replies to the same user message; a branch that ends on a user message just gets a reply.
+  const replyTo = target.role === "assistant" ? target.parentId : target.id;
+  if (!replyTo) throw new ApiError(400, "nothing_to_regenerate", "Send a message before regenerating a reply.");
+  const replyToRow = await prisma.message.findFirst({ where: { id: replyTo, conversationId }, select: { role: true, content: true } });
+  if (replyToRow?.role !== "user") throw new ApiError(400, "nothing_to_regenerate", "Send a message before regenerating a reply.");
 
   const modelId = await resolveModelId(conversation.modelId, input.modelId);
   await assertWithinBudget();
+  const history = await loadRequestHistory(conversationId, replyTo);
+  await assertCanReadImages(modelId, key, history.some((message) => (message.images?.length ?? 0) > 0));
 
-  const context = await retrieveContext(history.at(-1)!.content, { useKnowledge: input.useKnowledge ?? false, signal });
+  const context = await retrieveContext(replyToRow.content, { useKnowledge: input.useKnowledge ?? false, signal });
   const requestMessages = buildRequestMessages({
     systemPrompt: [conversation.systemPrompt, context.prompt].filter(Boolean).join("\n\n") || null,
-    history: history.map((message) => ({
-      role: message.role as "user" | "assistant",
-      content: message.content,
-      status: message.status,
-    })),
+    history,
   });
 
   const assistant = await prisma.$transaction(async (tx) => {
-    if (replacedId) {
-      await tx.message.delete({ where: { id: replacedId } });
-    }
-    await tx.conversation.update({ where: { id: conversationId }, data: { modelId } });
-    return tx.message.create({
+    const created = await tx.message.create({
       data: {
         conversationId,
         role: "assistant",
         content: "",
         modelId,
         status: "streaming",
+        parentId: replyTo,
         ...(context.citations.length ? { citations: context.citations as unknown as object } : {}),
       },
     });
+    await tx.conversation.update({ where: { id: conversationId }, data: { modelId, leafId: created.id } });
+    return created;
   });
 
   return {
@@ -330,6 +406,14 @@ export async function prepareRegenerate(conversationId: string, input: { modelId
     userMessage: null,
     citations: context.citations,
   };
+}
+
+/** Switches the conversation to another branch, landing on the newest end of it. */
+export async function selectBranch(conversationId: string, messageId: string): Promise<void> {
+  await ensureConversation(conversationId);
+  const rows = await prisma.message.findMany({ where: { conversationId }, select: { id: true, parentId: true, createdAt: true } });
+  if (!rows.some((row) => row.id === messageId)) throw new ApiError(404, "not_found", "That message no longer exists.");
+  await prisma.conversation.update({ where: { id: conversationId }, data: { leafId: deepestLatest(rows, messageId) } });
 }
 
 export async function resolveCost(

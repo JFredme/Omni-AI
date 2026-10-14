@@ -54,10 +54,13 @@ model Conversation {
   title        String        @default("New chat")
   modelId      String?
   systemPrompt String?       @db.Text
+  /// The last message of the branch currently shown. Plain id, not a foreign key, so branches can be added freely.
+  leafId       String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   messages     Message[]
   usage        UsageRecord[]
+  attachments  Attachment[]
 
   @@index([updatedAt])
 }
@@ -73,10 +76,16 @@ model Message {
   error          String?       @db.Text
   /// Sources and memories retrieved for this reply: [{ n, kind, documentId, name, page, heading, snippet, score }]
   citations      Json?
+  /// The message this one replies to. Messages form a tree so edits and regenerated replies become branches.
+  parentId       String?
+  parent         Message?      @relation("MessageTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children       Message[]     @relation("MessageTree")
+  attachments    Attachment[]
   createdAt      DateTime      @default(now())
   usage          UsageRecord?
 
   @@index([conversationId, createdAt])
+  @@index([parentId])
 }
 
 model UsageRecord {
@@ -366,5 +375,24 @@ model Memory {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  @@index([createdAt])
+}
+
+/// A file the user attached to a chat message. Images are sent to vision models; documents are read to text.
+model Attachment {
+  id            String        @id @default(cuid())
+  conversationId String?
+  conversation  Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messageId     String?
+  message       Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  name          String
+  kind          String
+  mimeType      String
+  sizeBytes     Int
+  data          Bytes
+  extractedText String?       @db.Text
+  createdAt     DateTime      @default(now())
+
+  @@index([messageId])
   @@index([createdAt])
 }

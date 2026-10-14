@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Pencil, ScrollText } from "lucide-react";
+import { BookOpen, Pencil } from "lucide-react";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { Composer } from "@/components/chat/composer";
 import { describeError, useModelCatalog } from "@/components/chat/use-model-catalog";
 import { LiveReply, Transcript } from "@/components/chat/transcript";
+import { ChatMenu } from "@/components/chat/chat-menu";
+import { SummaryDialog } from "@/components/chat/summary-dialog";
 import { ModelPicker } from "@/components/model-picker";
 import { buttonVariants } from "@/components/ui/button";
 import { apiRequest, isAbortError, streamTurn } from "@/lib/client/api";
@@ -63,11 +65,15 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   const [systemDraft, setSystemDraft] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const [useKnowledge, setUseKnowledge] = useKnowledgeToggle();
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  // Set while an edited message is being sent, so the screen shows the new version in place of the old.
+  const replacingRef = useRef<string | null>(null);
 
   const catalog = useModelCatalog();
   const { settings, models } = catalog;
   const current = detail && detail.id === activeId ? detail : null;
   const keyConfigured = settings?.apiKey.configured ?? false;
+  const selectedModel = models.find((model) => model.id === (current?.modelId ?? pendingModelId ?? settings?.defaultModelId ?? null)) ?? null;
   const selectedModelId = current?.modelId ?? pendingModelId ?? settings?.defaultModelId ?? null;
 
   const loadConversations = useCallback(async () => {
@@ -158,9 +164,12 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         setLive({ text: "", modelId: event.modelId, citations: event.citations ?? [] });
         if (event.userMessage) {
           const userMessage: MessageDto = event.userMessage;
-          setDetail((prev) =>
-            prev && prev.id === conversationId ? { ...prev, messages: [...prev.messages, userMessage] } : prev,
-          );
+          const replacing = replacingRef.current;
+          setDetail((prev) => {
+            if (!prev || prev.id !== conversationId) return prev;
+            const at = replacing ? prev.messages.findIndex((message) => message.id === replacing) : -1;
+            return { ...prev, messages: [...(at >= 0 ? prev.messages.slice(0, at) : prev.messages), userMessage] };
+          });
         }
         break;
       case "delta":
@@ -171,7 +180,8 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
     }
   }
 
-  async function runTurn(kind: "send" | "regenerate", content?: string) {
+  async function runTurn(kind: "send" | "regenerate", content?: string, options: { attachmentIds?: string[]; replaceMessageId?: string } = {}) {
+    replacingRef.current = options.replaceMessageId ?? null;
     const controller = new AbortController();
     abortRef.current = controller;
     setStreaming(true);
@@ -204,7 +214,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
       }
 
       const path = `/api/conversations/${conversationId}/${kind === "send" ? "messages" : "regenerate"}`;
-      await streamTurn(path, kind === "send" ? { content, useKnowledge } : { useKnowledge }, {
+      await streamTurn(path, kind === "send" ? { content, useKnowledge, attachmentIds: options.attachmentIds, replaceMessageId: options.replaceMessageId } : { useKnowledge }, {
         signal: controller.signal,
         onEvent: (event) => handleTurnEvent(conversationId as string, event),
       });
@@ -222,6 +232,17 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         }
       }
       await loadConversations();
+    }
+  }
+
+  async function switchBranch(messageId: string) {
+    const id = activeIdRef.current;
+    if (!id) return;
+    try {
+      await apiRequest(`/api/conversations/${id}/branch`, { json: { messageId } });
+      await reloadConversation(id, false);
+    } catch (error) {
+      setBanner(describeError(error));
     }
   }
 
@@ -378,23 +399,16 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
             />
           ) : null}
 
-          {current ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSystemDraft(current.systemPrompt ?? "");
-                setSystemOpen((open) => !open);
-              }}
-              aria-expanded={systemOpen}
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "sm" }),
-                current.systemPrompt && "text-accent-foreground",
-              )}
-            >
-              <ScrollText className="size-4" aria-hidden />
-              Instructions
-            </button>
-          ) : null}
+          <ChatMenu
+            conversationId={current?.id ?? null}
+            hasMessages={hasMessages}
+            hasInstructions={Boolean(current?.systemPrompt)}
+            onSummarize={() => setSummaryOpen(true)}
+            onInstructions={() => {
+              setSystemDraft(current?.systemPrompt ?? "");
+              setSystemOpen((open) => !open);
+            }}
+          />
 
           {current && current.usage.requests > 0 ? (
             <span
@@ -469,6 +483,8 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
               canRegenerate={canRegenerate}
               onRegenerate={() => void runTurn("regenerate")}
               onStop={() => abortRef.current?.abort()}
+              onEdit={(messageId, content) => void runTurn("send", content, { replaceMessageId: messageId })}
+              onSwitchBranch={(messageId) => void switchBranch(messageId)}
             />
           )}
           {!hasMessages && streaming && !live ? <p className="text-sm text-muted-foreground">Starting…</p> : null}
@@ -476,7 +492,9 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
 
         {settings ? (
           <Composer
-            onSend={(content) => void runTurn("send", content)}
+            onSend={(content, attachmentIds) => void runTurn("send", content, { attachmentIds })}
+            canReadImages={selectedModel ? selectedModel.capabilities.imageInput : true}
+            modelName={selectedModel?.name}
             onStop={() => abortRef.current?.abort()}
             streaming={streaming}
             disabled={!keyConfigured || !selectedModelId}
@@ -490,6 +508,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
           />
         ) : null}
       </section>
+      {summaryOpen && current ? <SummaryDialog conversationId={current.id} title={current.title} onClose={() => setSummaryOpen(false)} /> : null}
     </div>
   );
 }

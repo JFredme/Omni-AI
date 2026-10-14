@@ -40,11 +40,11 @@ export async function apiRequest<T>(
   return (await response.json()) as T;
 }
 
-/** Posts to a streaming turn endpoint and calls `onEvent` for each server-sent event. */
-export async function streamTurn(
+/** Posts to a server-sent-events endpoint and calls `onEvent` for each event, shaped `{ type, ...payload }`. */
+export async function streamEvents<T extends { type: string }>(
   path: string,
   body: unknown,
-  options: { signal: AbortSignal; onEvent: (event: TurnEvent) => void },
+  options: { signal: AbortSignal; onEvent: (event: T) => void },
 ): Promise<void> {
   const response = await fetch(path, {
     method: "POST",
@@ -62,7 +62,7 @@ export async function streamTurn(
   const dispatch = (events: { event: string; data: string }[]) => {
     for (const event of events) {
       const payload = JSON.parse(event.data) as Record<string, unknown>;
-      options.onEvent({ type: event.event, ...payload } as TurnEvent);
+      options.onEvent({ type: event.event, ...payload } as T);
     }
   };
 
@@ -72,4 +72,9 @@ export async function streamTurn(
     dispatch(parser.feed(decoder.decode(value, { stream: true })));
   }
   dispatch(parser.flush());
+}
+
+/** Posts to a streaming turn endpoint and calls `onEvent` for each server-sent event. */
+export function streamTurn(path: string, body: unknown, options: { signal: AbortSignal; onEvent: (event: TurnEvent) => void }): Promise<void> {
+  return streamEvents<TurnEvent>(path, body, options);
 }

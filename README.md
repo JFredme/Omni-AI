@@ -16,7 +16,8 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Persistent conversations and messages (PostgreSQL via Prisma) | Done |
 | Usage tracking (tokens, cost, 30-day breakdown), monthly spending limit | Done |
 | Password sign-in, protected pages and API, rate limiting, audit log | Done (see Security) |
-| Chat attachments, tool calling, JSON mode, branching | Not started |
+| Chat: editing and branching, image and document attachments, code highlighting, export, summaries, model comparison | Done |
+| Chat tool calling and JSON mode | Not started (use Agents for tools) |
 | Knowledge base (PDF, Word, Excel, CSV, Markdown, text, code, images; hybrid search; citations in chat) and memory | Done |
 | Tasks (priorities, due dates, subtasks, tags, search, filters, sorting, Kanban board) | Done (Part 3) |
 | Notes (Markdown, autosave, folders, tags, search, pinning) | Done (Part 3) |
@@ -98,6 +99,17 @@ The script applies migrations to `TEST_DATABASE_URL` (default `postgresql://USER
 - `e2e/productivity.mjs`: tasks (create, validate, subtasks, filter, search, sort, board drag-and-drop, delete), notes (autosave, reload persistence, Markdown preview, folders, tags, pinning, search), projects (milestones, progress, deletion), every AI action including that nothing is saved before confirmation, usage recording, the missing-key and spending-limit errors, and a phone-width layout check.
 
 The mock OpenRouter server in `e2e/mock-openrouter.mjs` follows the documented request and response formats. For the planning assistant it returns JSON built from the ids in the prompt, so the AI flows run against real records. It is not the live OpenRouter service, and it does not show how a particular real model behaves with the JSON prompts. To check against the live API, run the app with a real key and try a message.
+
+## Chat features
+
+- **Edit and branch.** Hover over a message you sent and choose **Edit**. The new version replaces it on screen, later messages drop away from that branch, and nothing is deleted: step between versions with the ‹ 2/3 › control. **Regenerate** keeps the earlier reply the same way. Conversations from before this feature were migrated into a straight line of messages.
+- **Attachments.** The paperclip attaches up to five files per message: images (PNG, JPEG, WebP, GIF, up to 5 MB) go to the model as images, and PDF, Word, Excel, CSV, Markdown, text, and code files (up to 10 MB) are read to text and given to the model as data. A model the catalog lists as text-only refuses images with a clear message. Files are stored in your database and served only to a signed-in browser (images inline, everything else as a download, with a sandbox policy).
+- **Code.** Code blocks are syntax highlighted, labelled with their language, and have a copy button.
+- **Export.** More → Export saves the version you're viewing as Markdown, plain text, or JSON.
+- **Summarize.** More → Summarize this chat asks the model for a summary, key points, and action items. Saving it as a note, or adding action items as tasks, happens only when you click.
+- **Compare models.** More → Compare models sends one prompt to two to four models at once and shows their answers side by side with time, tokens, and cost. These runs count toward usage but aren't saved as chats.
+- **Model capabilities** (images, tools, reasoning, context size) come from OpenRouter's catalog and are shown in the model picker and on the compare page.
+- Not built: calling tools from inside a chat. Agents are where tools live.
 
 ## Tasks, notes, and projects
 

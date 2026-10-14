@@ -178,6 +178,9 @@ function agentReply(user) {
 /** Builds the JSON a well-behaved model would return for each planning request. */
 function structuredReply(system, user) {
   if (system.includes("OMNI agent")) return agentReply(user);
+  if (system.includes("You summarize conversations")) {
+    return { summary: "A short mock summary of the chat.", keyPoints: ["Mock key point"], actionItems: ["Follow up on the mock chat"] };
+  }
   if (system.includes("Write a practical project plan")) {
     return {
       summary: "Start with research, then build.",
@@ -272,6 +275,17 @@ const server = createServer(async (request, response) => {
     const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
     if (Array.isArray(lastUser?.content) && lastUser.content.some((part) => part.type === "image_url")) {
       return streamText(response, "Text in image: INVOICE 4821 total due 310 dollars. The image shows a printed invoice.");
+    }
+    const userText = typeof lastUser?.content === "string" ? lastUser.content : "";
+    if (userText.includes("<attachment name=")) {
+      const attached = /<attachment name="([^"]*)">\n([\s\S]*?)\n<\/attachment>/.exec(userText);
+      return streamText(response, `I read the attachment ${attached?.[1]}: ${attached?.[2].replace(/\s+/g, " ").slice(0, 80)}`);
+    }
+    if (userText.toLowerCase().includes("show code")) {
+      return streamText(response, "Here you go:\n\n```js\nconst answer = 42;\nfunction greet(name) {\n  return `hi ${name}`; // say hi\n}\n```\n\nDone.");
+    }
+    if (userText.toLowerCase().includes("compare")) {
+      return streamText(response, `Answer from ${body.model}.`);
     }
     if (system.includes("<source n=") || system.includes("<memory>")) {
       const source = /<source n="1"[^>]*>\n([\s\S]*?)\n<\/source>/.exec(system)?.[1];

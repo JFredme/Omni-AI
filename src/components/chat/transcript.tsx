@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, BookMarked, Check, Copy, Loader2, RotateCcw, Square } from "lucide-react";
+import { AlertTriangle, BookMarked, Check, ChevronLeft, ChevronRight, Copy, FileText, Loader2, Pencil, RotateCcw, Square } from "lucide-react";
 import { Markdown } from "@/components/chat/markdown";
 import { Sources } from "@/components/chat/sources";
 import { apiRequest, ClientApiError } from "@/lib/client/api";
 import type { Citation } from "@/lib/knowledge/types";
 import { formatTokens, formatUsd } from "@/lib/format";
-import type { MessageDto } from "@/lib/chat/types";
+import type { BranchInfo, MessageDto } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
 
 export interface LiveReply {
@@ -33,6 +33,8 @@ export function Transcript({
   canRegenerate,
   onRegenerate,
   onStop,
+  onEdit,
+  onSwitchBranch,
 }: {
   messages: MessageDto[];
   live: LiveReply | null;
@@ -40,6 +42,8 @@ export function Transcript({
   canRegenerate: boolean;
   onRegenerate: () => void;
   onStop: () => void;
+  onEdit: (messageId: string, content: string) => void;
+  onSwitchBranch: (messageId: string) => void;
 }) {
   const lastAssistantId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
 
@@ -53,6 +57,9 @@ export function Transcript({
             message={message}
             showRegenerate={canRegenerate && !streaming && message.id === lastAssistantId}
             onRegenerate={onRegenerate}
+            busy={streaming}
+            onEdit={onEdit}
+            onSwitchBranch={onSwitchBranch}
           />
         );
       })}
@@ -81,7 +88,7 @@ export function Transcript({
   );
 }
 
-function RememberButton({ content }: { content: string }) {
+function RememberButton({ content, inline = false }: { content: string; inline?: boolean }) {
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -98,7 +105,7 @@ function RememberButton({ content }: { content: string }) {
   }
 
   return (
-    <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+    <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", !inline && "px-1")}>
       <button
         type="button"
         onClick={() => void remember()}
@@ -122,14 +129,136 @@ function ThinkingDots() {
   );
 }
 
+/** "‹ 2/3 ›": steps between the versions of a message made by editing or regenerating. */
+function BranchSwitcher({ branch, onSwitch, disabled }: { branch: BranchInfo; onSwitch: (messageId: string) => void; disabled: boolean }) {
+  if (branch.count < 2) return null;
+  const go = (offset: number) => onSwitch(branch.ids[branch.index + offset]);
+  return (
+    <span className="inline-flex items-center gap-0.5" role="group" aria-label="Versions of this message">
+      <button type="button" onClick={() => go(-1)} disabled={disabled || branch.index === 0} aria-label="Previous version" className="rounded p-0.5 hover:bg-accent hover:text-foreground disabled:opacity-30">
+        <ChevronLeft className="size-3.5" aria-hidden />
+      </button>
+      <span className="num min-w-8 text-center">
+        {branch.index + 1}/{branch.count}
+      </span>
+      <button type="button" onClick={() => go(1)} disabled={disabled || branch.index === branch.count - 1} aria-label="Next version" className="rounded p-0.5 hover:bg-accent hover:text-foreground disabled:opacity-30">
+        <ChevronRight className="size-3.5" aria-hidden />
+      </button>
+    </span>
+  );
+}
+
+function AttachmentList({ attachments }: { attachments: MessageDto["attachments"] }) {
+  if (attachments.length === 0) return null;
+  return (
+    <ul aria-label="Attachments" className="flex max-w-full flex-wrap justify-end gap-2">
+      {attachments.map((attachment) =>
+        attachment.kind === "image" ? (
+          <li key={attachment.id}>
+            <a href={`/api/attachments/${attachment.id}`} target="_blank" rel="noopener noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element -- a protected, user-owned file; Next's optimizer isn't needed */}
+              <img src={`/api/attachments/${attachment.id}`} alt={attachment.name} className="max-h-40 max-w-full rounded-lg border border-border object-cover" />
+            </a>
+          </li>
+        ) : (
+          <li key={attachment.id}>
+            <a href={`/api/attachments/${attachment.id}`} download={attachment.name} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs hover:bg-accent">
+              <FileText className="size-3.5" aria-hidden /> {attachment.name}
+            </a>
+          </li>
+        ),
+      )}
+    </ul>
+  );
+}
+
+function UserMessage({
+  message,
+  busy,
+  onEdit,
+  onSwitchBranch,
+}: {
+  message: MessageDto;
+  busy: boolean;
+  onEdit: (messageId: string, content: string) => void;
+  onSwitchBranch: (messageId: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(message.content);
+
+  if (editing) {
+    return (
+      <div className="flex w-full flex-col items-end gap-2">
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          rows={Math.min(10, Math.max(3, draft.split("\n").length))}
+          aria-label="Edit your message"
+          className="w-full max-w-[90%] rounded-xl border border-ring bg-card p-3 text-[15px] leading-6 outline-none md:max-w-[80%]"
+        />
+        <p className="text-xs text-muted-foreground">Sending creates a new version. The original stays available.</p>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setEditing(false)} className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent">
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!draft.trim() && message.attachments.length === 0}
+            onClick={() => {
+              setEditing(false);
+              onEdit(message.id, draft.trim());
+            }}
+            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Send new version
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group flex flex-col items-end gap-1">
+      <AttachmentList attachments={message.attachments} />
+      {message.content ? (
+        <div className="max-w-[90%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-primary/15 px-4 py-3 text-[15px] leading-7 md:max-w-[80%]">{message.content}</div>
+      ) : null}
+      <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+        <BranchSwitcher branch={message.branch} onSwitch={onSwitchBranch} disabled={busy} />
+        <span className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(message.content);
+              setEditing(true);
+            }}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-foreground disabled:opacity-40"
+          >
+            <Pencil className="size-3.5" aria-hidden /> Edit
+          </button>
+          {message.content ? <RememberButton content={message.content} inline /> : null}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({
   message,
   showRegenerate,
   onRegenerate,
+  busy,
+  onEdit,
+  onSwitchBranch,
 }: {
   message: MessageDto;
   showRegenerate: boolean;
   onRegenerate: () => void;
+  busy: boolean;
+  onEdit: (messageId: string, content: string) => void;
+  onSwitchBranch: (messageId: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -145,14 +274,7 @@ function MessageBubble({
   }
 
   if (isUser) {
-    return (
-      <div className="group flex flex-col items-end gap-1">
-        <div className="max-w-[90%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-primary/15 px-4 py-3 text-[15px] leading-7 md:max-w-[80%]">
-          {message.content}
-        </div>
-        <RememberButton content={message.content} />
-      </div>
-    );
+    return <UserMessage message={message} busy={busy} onEdit={onEdit} onSwitchBranch={onSwitchBranch} />;
   }
 
   const failed = message.status === "error";
@@ -190,6 +312,7 @@ function MessageBubble({
 
       {!streaming ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
+          <BranchSwitcher branch={message.branch} onSwitch={onSwitchBranch} disabled={busy} />
           <span className="font-mono">{message.modelId ?? "unknown model"}</span>
           <span>·</span>
           <span>{usageSummary(message)}</span>

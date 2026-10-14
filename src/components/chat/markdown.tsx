@@ -1,6 +1,45 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { Check, Copy } from "lucide-react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+
+/** A fenced code block with its language and a copy button. Syntax colors come from `.hljs-*` rules in globals.css. */
+function CodeBlock({ children }: { children?: React.ReactNode }) {
+  const ref = useRef<HTMLPreElement | null>(null);
+  const [copied, setCopied] = useState(false);
+  const element = Array.isArray(children) ? children[0] : children;
+  const className = (element as { props?: { className?: string } } | null)?.props?.className ?? "";
+  const language = /language-([\w+-]+)/.exec(className)?.[1];
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(ref.current?.textContent ?? "");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="my-3 overflow-hidden rounded-lg border border-border bg-muted/60">
+      <div className="flex items-center justify-between border-b border-border/70 px-3 py-1 text-xs text-muted-foreground">
+        <span className="font-mono">{language ?? "text"}</span>
+        <button type="button" onClick={() => void copy()} aria-label={copied ? "Copied code" : "Copy code"} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-accent hover:text-foreground">
+          {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre ref={ref} className="overflow-x-auto p-3 font-mono text-[13px] leading-6">
+        {children}
+      </pre>
+    </div>
+  );
+}
 
 const components: Components = {
   p: ({ children }) => <p className="my-2 leading-7 first:mt-0 last:mb-0">{children}</p>,
@@ -23,11 +62,7 @@ const components: Components = {
   blockquote: ({ children }) => (
     <blockquote className="my-2 border-l-2 border-border pl-3 text-muted-foreground">{children}</blockquote>
   ),
-  pre: ({ children }) => (
-    <pre className="my-3 overflow-x-auto rounded-xl border border-border bg-muted/60 p-3 font-mono text-[13px] leading-6">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
   code: ({ children, className }) =>
     className ? (
       <code className={className}>{children}</code>
@@ -47,7 +82,7 @@ const components: Components = {
 export function Markdown({ children }: { children: string }) {
   return (
     <div className="min-w-0 break-words text-[15px]">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[[rehypeHighlight, { detect: false, ignoreMissing: true }]]} components={components}>
         {children}
       </ReactMarkdown>
     </div>
