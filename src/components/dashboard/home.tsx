@@ -44,7 +44,7 @@ export function HomeDashboard() {
   const focus = data ? [...data.overdue, ...data.dueToday.filter((task) => !data.overdue.some((late) => late.id === task.id))] : [];
 
   return (
-    <div className="space-y-10">
+    <div className="min-w-0 space-y-10">
       <header className="flex flex-col gap-1">
         <p className="eyebrow" suppressHydrationWarning>
           {now ? now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) : " "}
@@ -57,8 +57,9 @@ export function HomeDashboard() {
 
       {error ? <ErrorBanner message={error} onRetry={() => void load()} /> : null}
 
-      <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="space-y-10">
+      <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-10">
+          {data ? <WeekStrip week={data.week} today={data.today} /> : null}
           {data && data.events.length > 0 ? (
             <section aria-labelledby="schedule-heading" className="space-y-3">
               <SectionTitle id="schedule-heading" title="Today's schedule" href="/calendar" linkLabel="Calendar" />
@@ -131,7 +132,7 @@ export function HomeDashboard() {
           </section>
         </div>
 
-        <aside className="space-y-10">
+        <aside className="min-w-0 space-y-10">
           <section aria-labelledby="projects-heading" className="space-y-3">
             <SectionTitle id="projects-heading" title="Active projects" href="/projects" linkLabel="All projects" />
             {!data ? (
@@ -305,5 +306,36 @@ function QuickAdd({ onAdded }: { onAdded: () => Promise<void> }) {
       </div>
       {error ? <p role="alert" className="text-xs text-danger">{error}</p> : null}
     </form>
+  );
+}
+
+function WeekStrip({ week, today }: { week: DashboardDto["week"]; today: string }) {
+  return (
+    <section aria-labelledby="week-heading" className="space-y-3">
+      <SectionTitle id="week-heading" title="This week" href="/calendar" linkLabel="Calendar" />
+      <ol className="grid grid-cols-7 overflow-hidden rounded-lg border border-border bg-card">
+        {week.map((day, index) => {
+          const date = new Date(`${day.date}T12:00:00`);
+          const isToday = day.date === today;
+          const busy = day.tasksDue + day.events;
+          return (
+            <li key={day.date} className={`min-w-0 px-1.5 py-3 text-center sm:px-3 ${index > 0 ? "border-l border-border" : ""} ${isToday ? "bg-primary/[0.06]" : ""}`}>
+              <p className="eyebrow">{date.toLocaleDateString(undefined, { weekday: "short" })}</p>
+              <p className={`num mt-1 font-display text-2xl leading-none ${isToday ? "text-primary" : ""}`}>{date.getDate()}</p>
+              <p className="mt-2 flex h-4 items-center justify-center gap-1" aria-label={busy ? `${day.tasksDue} due, ${day.events} events` : "Nothing scheduled"}>
+                {busy === 0 ? <span className="size-1 rounded-full bg-border" aria-hidden /> : null}
+                {Array.from({ length: Math.min(day.tasksDue, 3) }, (_, i) => <span key={`t${i}`} className="size-1.5 rounded-full bg-primary" aria-hidden />)}
+                {Array.from({ length: Math.min(day.events, 3) }, (_, i) => <span key={`e${i}`} className="size-1.5 rounded-full border border-primary" aria-hidden />)}
+              </p>
+              <p className="num mt-1 hidden text-[11px] text-muted-foreground sm:block">{busy ? `${day.tasksDue ? `${day.tasksDue} due` : ""}${day.tasksDue && day.events ? " · " : ""}${day.events ? `${day.events} ev` : ""}` : "\u00a0"}</p>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="flex gap-4 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary" aria-hidden />Task due</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full border border-primary" aria-hidden />Event</span>
+      </p>
+    </section>
   );
 }

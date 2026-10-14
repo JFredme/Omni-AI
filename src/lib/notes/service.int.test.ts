@@ -69,7 +69,7 @@ describe("note service (database)", () => {
     const note = await createNote({ content: "# Heading\n\nBody text" });
     const [summary] = await listNotes();
     expect(summary).not.toHaveProperty("content");
-    expect(summary.excerpt).toBe("Heading Body text");
+    expect(summary.excerpt).toBe("Body text"); // the opening heading is left out of the preview
     expect((await getNote(note.id)).content).toBe("# Heading\n\nBody text");
   });
 

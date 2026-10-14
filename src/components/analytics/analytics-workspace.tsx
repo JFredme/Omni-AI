@@ -68,7 +68,7 @@ export function AnalyticsWorkspace() {
 
   const a = data;
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-8">
+    <div className="flex flex-col gap-8">
       <PageHeader eyebrow="Analytics" title="Analytics" description="What you got done, where your time went, and what the AI cost. Counted from your own data, nothing estimated." actions={range} />
       {error ? <ErrorBanner message={error} onRetry={() => void load(days)} /> : null}
       {!a && !error ? <SkeletonRows count={5} /> : null}
@@ -92,7 +92,7 @@ export function AnalyticsWorkspace() {
                 <BarChart title="Tasks created per day" points={a.tasks.created} tone="muted" />
               </div>
             </div>
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <div className="mt-6 grid items-start gap-6 md:grid-cols-2">
               <table className="w-full text-left text-sm">
                 <caption className="eyebrow mb-2 text-left">By priority</caption>
                 <thead><tr className="text-muted-foreground"><th className="py-1 font-medium">Priority</th><th className="py-1 text-right font-medium">Open</th><th className="py-1 text-right font-medium">Finished</th></tr></thead>

@@ -28,7 +28,7 @@ export function ExportMenu({ label = "Export", options, align = "right" }: { lab
 
   return (
     <details ref={ref} className="relative">
-      <summary aria-label={label} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}>
+      <summary aria-label={label} className={cn(buttonVariants({ variant: "outline", size: "md" }), "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}>
         <Download className="size-4" aria-hidden /> {label}
       </summary>
       <div className={cn("absolute z-30 mt-1 w-44 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground", align === "right" ? "right-0" : "left-0")}>

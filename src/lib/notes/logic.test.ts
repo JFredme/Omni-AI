@@ -4,15 +4,20 @@ import { countWords, displayTitle, insertSummary, makeExcerpt } from "./logic";
 describe("note logic", () => {
   it("strips Markdown syntax from excerpts", () => {
     const excerpt = makeExcerpt("# Title\n\nSome **bold** and `code` with a [link](https://x.test).\n\n- item one\n> quote");
-    expect(excerpt).toBe("Title Some bold and code with a link. item one quote");
+    expect(excerpt).toBe("Some bold and code with a link. · item one · quote");
   });
 
   it("hides HTML comments such as summary markers", () => {
-    expect(makeExcerpt("<!-- omni-summary -->\nSummary text\n<!-- /omni-summary -->\nBody")).toBe("Summary text Body");
+    expect(makeExcerpt("<!-- omni-summary -->\nSummary text\n<!-- /omni-summary -->\nBody")).toBe("Summary text · Body");
   });
 
   it("drops fenced code blocks and keeps image alt text", () => {
-    expect(makeExcerpt("before\n```js\nconst a = 1;\n```\nafter ![diagram](a.png)")).toBe("before after diagram");
+    expect(makeExcerpt("before\n```js\nconst a = 1;\n```\nafter ![diagram](a.png)")).toBe("before · after diagram");
+  });
+
+  it("leaves out an opening heading that only repeats the title, but keeps a lone heading", () => {
+    expect(makeExcerpt("# Interview questions\n\n- What do you use it for?\n- What is slow?")).toBe("What do you use it for? · What is slow?");
+    expect(makeExcerpt("# Only a heading")).toBe("Only a heading");
   });
 
   it("truncates long excerpts with an ellipsis", () => {

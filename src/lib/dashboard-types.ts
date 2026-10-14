@@ -13,6 +13,8 @@ export interface DashboardDto {
   overdue: DashboardTask[];
   dueToday: DashboardTask[];
   inProgress: DashboardTask[];
+  /** The next seven days, starting today: how many tasks fall due and how many events are scheduled on each. */
+  week: { date: string; tasksDue: number; events: number }[];
   events: { id: string; title: string; start: string; end: string; allDay: boolean }[];
   projects: { id: string; name: string; dueDate: string | null; progress: number; total: number; done: number; overdue: number }[];
   notes: { id: string; title: string; excerpt: string; updatedAt: string; pinned: boolean }[];

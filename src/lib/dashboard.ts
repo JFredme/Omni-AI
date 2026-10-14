@@ -27,8 +27,19 @@ export async function getDashboard(today: string = localDateKey(), timeZone = "U
     getMonthSpend(),
     prisma.appSettings.findUnique({ where: { id: 1 }, select: { monthlyBudgetUsd: true } }),
     prisma.conversation.count(),
-    listRange(midnight(today), midnight(addDays(today, 1))),
+    listRange(midnight(today), midnight(addDays(today, 7))),
   ]);
+  const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" });
+  const tomorrow = midnight(addDays(today, 1)).getTime();
+  const todays = schedule.occurrences.filter((o) => new Date(o.start).getTime() < tomorrow);
+  const week = Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(today, index);
+    return {
+      date,
+      tasksDue: schedule.tasks.filter((task) => task.dueDate === date && task.status !== "done").length,
+      events: schedule.occurrences.filter((o) => dayKey.format(new Date(o.start)) === date).length,
+    };
+  });
 
   const slim = (task: (typeof overdue)[number]) => ({
     id: task.id,
@@ -45,7 +56,8 @@ export async function getDashboard(today: string = localDateKey(), timeZone = "U
     overdue: overdue.slice(0, 6).map(slim),
     dueToday: dueToday.filter((task) => task.status !== "done").slice(0, 8).map(slim),
     inProgress: inProgress.slice(0, 6).map(slim),
-    events: schedule.occurrences.map((o) => ({ id: `${o.eventId}-${o.key}`, title: o.title, start: o.start, end: o.end, allDay: o.allDay })).slice(0, 8),
+    week,
+    events: todays.map((o) => ({ id: `${o.eventId}-${o.key}`, title: o.title, start: o.start, end: o.end, allDay: o.allDay })).slice(0, 8),
     projects: projects.filter((project) => project.status === "active" || project.status === "planning").slice(0, 5).map((project) => ({
       id: project.id,
       name: project.name,

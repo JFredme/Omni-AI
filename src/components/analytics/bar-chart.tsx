@@ -21,7 +21,8 @@ export function BarChart({
   const last = points[points.length - 1]?.date;
 
   return (
-    <figure className="min-w-0">
+    <figure className="relative min-w-0">
+      {max === 0 ? <p className="pointer-events-none absolute inset-x-0 top-12 text-center text-sm text-muted-foreground">Nothing in this range</p> : null}
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title} className="h-32 w-full" preserveAspectRatio="none">
         <line x1="0" x2={width} y1={height - 0.5} y2={height - 0.5} className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         {points.map((point, index) => {

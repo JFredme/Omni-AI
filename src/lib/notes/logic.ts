@@ -2,15 +2,20 @@ export const EXCERPT_LENGTH = 160;
 
 /** A plain-text preview of Markdown: syntax characters removed, whitespace collapsed, then truncated. */
 export function makeExcerpt(markdown: string, maxLength = EXCERPT_LENGTH): string {
-  const plain = markdown
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/```[\s\S]*?```/g, " ")
+  const lines = markdown
+    .replace(/<!--[\s\S]*?-->/g, "\n")
+    .replace(/```[\s\S]*?```/g, "\n")
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
-    .replace(/(\*\*|__|\*|_|~~|`)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  // A note usually opens with a heading that repeats its title; the preview is more useful without it.
+  if (lines.length > 1 && /^#{1,6}\s/.test(lines[0])) lines.shift();
+  const plain = lines
+    .map((line) => line.replace(/^(#{1,6}|>|[-*+]|\d+\.)\s+/, "").replace(/(\*\*|__|\*|_|~~|`)/g, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" · ");
   return plain.length > maxLength ? `${plain.slice(0, maxLength).trimEnd()}…` : plain;
 }
 
