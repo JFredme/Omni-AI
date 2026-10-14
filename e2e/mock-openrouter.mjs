@@ -178,6 +178,10 @@ function agentReply(user) {
 /** Builds the JSON a well-behaved model would return for each planning request. */
 function structuredReply(system, user) {
   if (system.includes("OMNI agent")) return agentReply(user);
+  if (system.includes("plan web searches")) {
+    const question = /<data>\n([\s\S]*?)\n<\/data>/.exec(user)?.[1] ?? "question";
+    return { queries: [question.slice(0, 80), `${question.slice(0, 60)} overview`] };
+  }
   if (system.includes("Plan focused work time")) {
     const dates = /dates (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/.exec(system);
     const ids = allMatches(user, /"taskId":"([^"]+)"/g);
@@ -295,6 +299,19 @@ const server = createServer(async (request, response) => {
     if (userText.toLowerCase().includes("compare")) {
       return streamText(response, `Answer from ${body.model}.`);
     }
+    if (system.includes("careful research assistant")) {
+      const slow = userText.toLowerCase().includes("slow");
+      const text = "Solar panels became far cheaper over the decade [1]. Wind turbines followed a similar path [2]. An unsupported claim slipped in [8].";
+      if (!slow) return streamText(response, text);
+      response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
+      for (let i = 0; i < 60; i += 1) {
+        if (response.destroyed) return;
+        response.write(chunk(`word${i} `));
+        await sleep(250);
+      }
+      response.end("data: [DONE]\n\n");
+      return;
+    }
     if (system.includes("<source n=") || system.includes("<memory>")) {
       const source = /<source n="1"[^>]*>\n([\s\S]*?)\n<\/source>/.exec(system)?.[1];
       const memory = /<memory>([\s\S]*?)<\/memory>/.exec(system)?.[1];
@@ -306,6 +323,31 @@ const server = createServer(async (request, response) => {
     if (system.includes("ONE JSON object")) return streamStructured(response, system, String(lastUser?.content ?? ""));
     const prompt = String(lastUser?.content ?? "").toLowerCase();
     return streamCompletion(response, prompt);
+  }
+
+  if (request.method === "GET" && url.pathname === "/searxng/search") {
+    const q = url.searchParams.get("q") ?? "";
+    if (q.includes("break-search")) return json(response, 502, { error: "search backend down" });
+    return json(response, 200, {
+      results: [
+        { title: "Solar costs", url: `http://localhost:${port}/pages/solar`, content: `Search snippet about ${q}` },
+        { title: "Wind costs", url: `http://localhost:${port}/pages/wind`, content: "Wind snippet" },
+        { title: "A missing page", url: `http://localhost:${port}/pages/missing`, content: "Snippet from a page that no longer exists" },
+      ],
+    });
+  }
+  if (request.method === "GET" && url.pathname.startsWith("/pages/")) {
+    const pages = {
+      "/pages/solar": ["Solar costs explained", "Solar panels became much cheaper over the last decade as manufacturing scaled up around the world."],
+      "/pages/wind": ["Wind costs explained", "Wind turbines also fell in price over the same period, with offshore projects improving the most."],
+    };
+    const page = pages[url.pathname];
+    if (!page) {
+      response.writeHead(404, { "Content-Type": "text/plain" });
+      return response.end("not found");
+    }
+    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    return response.end(`<html><head><title>${page[0]}</title></head><body><nav><a href="/">Home</a></nav><article><p>${page[1]}</p><p>${page[1]} Additional detail makes this long enough to count as real article text for the reader.</p></article></body></html>`);
   }
 
   if (request.method === "POST" && url.pathname === "/api/v1/embeddings") {

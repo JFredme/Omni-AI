@@ -100,7 +100,7 @@ export const navItems: NavItem[] = [
     description: "Search, extract sources, and build cited reports.",
     icon: Telescope,
     section: "Knowledge",
-    status: "planned",
+    status: "ready",
   },
   {
     id: "knowledge",

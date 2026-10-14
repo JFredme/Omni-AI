@@ -26,7 +26,8 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Agents (builder, run engine, tool registry, approvals, limits, cancellation, bounded delegation, run history) | Done (Part 4, first phase) |
 | Calendar: month/week/agenda views, repeating events, tasks and milestones overlay, .ics import/export, AI time blocking | Done (Google Calendar sync needs OAuth; see Calendar) |
 | Automations: visual step flows, schedule/event/webhook triggers, run history | Done |
-| Research, code, analytics | Not started (routes show a "Not built yet" page) |
+| Research: web search provider, page reading, cited reports | Done (needs a search provider key) |
+| Code workspace, analytics | Not started (routes show a "Not built yet" page) |
 
 ## Requirements
 
@@ -147,6 +148,18 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 - **Persistence and recovery.** Runs, steps, and costs are stored in PostgreSQL. A run that was working when the server stopped resumes on the next visit. A tool that was mid-flight is never repeated: the agent is told it may or may not have completed. Runs waiting for approval stay paused.
 - **Prompt injection.** Tool results and your workspace text go to the model inside `<data>` blocks with instructions to treat them as information, and the agent can only use tools you enabled. The main protection is that consequential actions need approval.
 - **Built-in agents:** General Assistant, Project Manager, Study Assistant, and Writing Agent. They are read-only; duplicate one to customize it. The Research, Coding, Email, Calendar, Document Analyst, Data Analyst, and Automation agents will be added together with the tools they need, rather than shipped without them.
+
+## Research
+
+Ask a question on the Research page and Omni plans a few searches, runs them through the web search service you choose, **reads the actual pages**, and writes a Markdown report where each claim ends with the number of the source behind it.
+
+- **You choose the search service** in Settings → Web search (or right on the Research page the first time): **Brave Search** or **Tavily** (each needs an API key; both have free plans) or your own **SearXNG** instance (needs its address and JSON output enabled). Keys are encrypted at rest and never shown again, only their last four characters. Without one, Research tells you exactly what's missing and doesn't run.
+- **Sources are never invented.** The only sources are results the search service returned, with tracking parameters removed and duplicates merged. After the model writes, every citation number is checked against the sources it was actually given; numbers that don't match are removed. Each source shows whether its page was read or only its search snippet was available, why a page couldn't be read, and whether the report actually cited it.
+- **Safe page reading.** Pages are fetched only over http(s), at most 1.5 MB each, never from your own machine or network (checked again at every redirect), and PDFs and non-pages are reported as unreadable rather than guessed at. Page text is passed to the model fenced as source material with instructions to treat it as information, never as orders.
+- **Cost.** A run is one small planning call and one report call to your default model, plus the search requests. *Quick* reads up to four pages, *Thorough* up to eight.
+- **Keeping results.** Reports are saved and listed. From a report you can copy it as Markdown, save it as a note, or add it to Knowledge so chat can use it. Stop keeps what was written so far.
+- **Agents.** `web_search` and `read_webpage` are read tools; the built-in **Research Agent** uses them. An agent can only open an address that a search returned in the same run, or that you typed in the objective, so a hostile page can't make it fetch an attacker's address with your data in the URL.
+- Not built: reading PDFs found on the web, and searching behind logins. The search request itself (your query) goes to the provider you chose.
 
 ## Automations
 

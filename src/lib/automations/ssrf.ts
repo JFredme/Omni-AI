@@ -29,7 +29,7 @@ export function isPrivateAddress(address: string): boolean {
 export class BlockedUrlError extends Error {}
 
 /** Checks a URL is safe to call from the server: http(s), no embedded credentials, and no private destination. */
-export async function assertPublicUrl(raw: string): Promise<URL> {
+export async function assertPublicUrl(raw: string, options: { allowPrivate?: boolean } = {}): Promise<URL> {
   let url: URL;
   try {
     url = new URL(raw);
@@ -38,7 +38,7 @@ export async function assertPublicUrl(raw: string): Promise<URL> {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new BlockedUrlError("Only http and https addresses can be called.");
   if (url.username || url.password) throw new BlockedUrlError("Addresses can't contain a username or password.");
-  if (process.env.AUTOMATION_ALLOW_PRIVATE_HOSTS === "1") return url;
+  if (options.allowPrivate ?? process.env.AUTOMATION_ALLOW_PRIVATE_HOSTS === "1") return url;
 
   const host = url.hostname.replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {

@@ -49,16 +49,17 @@ const components: Components = {
   h1: ({ children }) => <h3 className="mt-4 mb-2 text-lg font-semibold">{children}</h3>,
   h2: ({ children }) => <h3 className="mt-4 mb-2 text-base font-semibold">{children}</h3>,
   h3: ({ children }) => <h4 className="mt-3 mb-1.5 text-sm font-semibold">{children}</h4>,
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-primary underline underline-offset-2 hover:opacity-80"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) =>
+    href?.startsWith("#") ? (
+      // A link to another part of the same page, such as a citation pointing at its source.
+      <a href={href} className="align-super text-[0.7em] font-medium text-primary no-underline hover:underline">
+        {children}
+      </a>
+    ) : (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:opacity-80">
+        {children}
+      </a>
+    ),
   blockquote: ({ children }) => (
     <blockquote className="my-2 border-l-2 border-border pl-3 text-muted-foreground">{children}</blockquote>
   ),

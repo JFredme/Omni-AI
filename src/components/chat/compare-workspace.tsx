@@ -148,11 +148,11 @@ export function CompareWorkspace() {
             <Textarea id="compare-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={4} maxLength={20_000} placeholder="Ask the same thing of every model" />
             <div className="flex gap-2">
               {running ? (
-                <Button variant="outline" onClick={() => abortRef.current?.abort()}>
+                <Button key="stop" variant="outline" onClick={() => abortRef.current?.abort()}>
                   <Square className="size-3.5 fill-current" aria-hidden /> Stop
                 </Button>
               ) : (
-                <Button type="submit" variant="primary" disabled={!ready}>
+                <Button key="start" type="submit" variant="primary" disabled={!ready}>
                   Compare
                 </Button>
               )}

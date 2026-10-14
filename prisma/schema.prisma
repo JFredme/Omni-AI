@@ -45,6 +45,12 @@ model AppSettings {
   embeddingModelId String?
   /// Whether saved memories are offered to the model in chat.
   memoryEnabled    Boolean   @default(true)
+  /// Web search provider for Research: "brave", "tavily", or "searxng". Null means not set up.
+  searchProvider   String?
+  encryptedSearchKey String? @db.Text
+  searchKeyLast4   String?
+  /// For SearXNG: the address of your instance.
+  searchBaseUrl    String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -488,4 +494,29 @@ model WorkflowRunStep {
   finishedAt DateTime?
 
   @@index([runId, index])
+}
+
+enum ResearchStatus {
+  running
+  complete
+  failed
+  stopped
+}
+
+/// A researched answer: the question, the report, and every source it was built from.
+model ResearchReport {
+  id        String         @id @default(cuid())
+  question  String         @db.Text
+  depth     String         @default("quick")
+  status    ResearchStatus @default(running)
+  report    String         @default("") @db.Text
+  /// [{ n, title, url, snippet, read: boolean, note?: string, cited: boolean }]
+  sources   Json           @default("[]")
+  queries   String[]       @default([])
+  modelId   String?
+  error     String?        @db.Text
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([createdAt])
 }

@@ -2,6 +2,7 @@ import { unstable_rethrow } from "next/navigation";
 import { z, type ZodType } from "zod";
 import { ApiError, errorResponseBody } from "@/lib/api-error";
 import { OpenRouterError, userMessageFor } from "@/lib/openrouter/errors";
+import { SearchError } from "@/lib/research/providers";
 
 const statusForOpenRouterKind: Record<string, number> = {
   invalid_key: 401,
@@ -25,6 +26,10 @@ export function errorResponse(error: unknown): Response {
   if (error instanceof OpenRouterError) {
     const status = statusForOpenRouterKind[error.kind] ?? 502;
     return Response.json(errorResponseBody(error.kind, userMessageFor(error)), { status });
+  }
+  if (error instanceof SearchError) {
+    const status = error.kind === "rate_limited" ? 429 : error.kind === "key_rejected" ? 400 : 502;
+    return Response.json(errorResponseBody(`search_${error.kind}`, error.message), { status });
   }
   if (error instanceof z.ZodError) {
     const issue = error.issues[0];
