@@ -50,4 +50,4 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 
 ## Test results (last full run)
 - typecheck, lint: pass.
-- Unit: see `npx vitest run`. Integration: see `npm run test:integration`. E2E: smoke 9, chat 10, productivity 25, agents 14.
+- Unit: 188 passed (31 files). Integration: 77 passed (6 files, real Postgres, mocked OpenRouter). E2E on a production build: smoke 9, chat 10, productivity 25, agents 14, all passed.
