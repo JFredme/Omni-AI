@@ -1,0 +1,92 @@
+{
+  "name": "omni-ai-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OMNI AI desktop app: the server and its own database, in one window.",
+  "author": "OMNI AI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "prepare-app": "node prepare.mjs",
+    "dist": "node prepare.mjs && electron-builder"
+  },
+  "dependencies": {
+    "embedded-postgres": "17.10.0-beta.17",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "allowScripts": {
+    "electron@39.8.10": true,
+    "@embedded-postgres/darwin-arm64@17.10.0-beta.17": true,
+    "electron-winstaller@5.4.0": true
+  },
+  "build": {
+    "appId": "app.omni.desktop",
+    "productName": "OMNI AI",
+    "copyright": "OMNI AI",
+    "asar": false,
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!server-bundle/**",
+      "!migrations/**",
+      "!dist/**",
+      "!build/**",
+      "!prepare.mjs"
+    ],
+    "extraResources": [
+      {
+        "from": "server-bundle",
+        "to": "app-server",
+        "filter": [
+          "**/*",
+          "!node_modules"
+        ]
+      },
+      {
+        "from": "migrations",
+        "to": "migrations"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "OMNI-AI-${version}-mac-arm64.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "OMNI-AI-${version}-windows-x64-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "dmg": {
+      "title": "OMNI AI"
+    },
+    "afterPack": "./after-pack.cjs"
+  }
+}

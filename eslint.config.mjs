@@ -10,11 +10,15 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
+    ".next-desktop/**",
     "build/**",
     "next-env.d.ts",
     // The code editor's files, copied from node_modules by scripts/copy-monaco.mjs.
     "public/monaco/**",
     "src/generated/**",
+    // The desktop and Android apps are plain scripts with their own tooling.
+    "desktop/**",
+    "android/**",
   ]),
 ]);
 

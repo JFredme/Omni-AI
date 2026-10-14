@@ -44,3 +44,14 @@ next-env.d.ts
 
 # code editor files, copied from node_modules by scripts/copy-monaco.mjs
 /public/monaco
+
+# desktop app build output
+/.next-desktop/
+/desktop/node_modules/
+/desktop/server-bundle/
+/desktop/dist/
+/desktop/migrations/
+/android/node_modules/
+/android/android/build/
+/android/android/app/build/
+/android/android/.gradle/

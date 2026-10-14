@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
+// The desktop app bundles a self-contained server. Its build goes to its own folder so it never disturbs a running dev server.
+const forDesktop = process.env.OMNI_DESKTOP_BUILD === "1";
+
 const nextConfig: NextConfig = {
+  ...(forDesktop ? { output: "standalone" as const, distDir: ".next-desktop" } : {}),
   /* config options here */
   // Hides the small Next.js badge that shows in the corner while developing.
   devIndicators: false,
