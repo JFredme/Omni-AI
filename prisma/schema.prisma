@@ -90,3 +90,100 @@ model UsageRecord {
 
   @@index([createdAt])
 }
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum ProjectStatus {
+  planning
+  active
+  on_hold
+  completed
+  archived
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String        @default("") @db.Text
+  status      ProjectStatus @default(planning)
+  dueDate     DateTime?     @db.Date
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  milestones  Milestone[]
+  tasks       Task[]
+
+  @@index([status, updatedAt])
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  dueDate     DateTime? @db.Date
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  tasks       Task[]
+
+  @@index([projectId, dueDate])
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String       @default("") @db.Text
+  status      TaskStatus   @default(todo)
+  priority    TaskPriority @default(medium)
+  dueDate     DateTime?    @db.Date
+  completedAt DateTime?
+  tags        String[]     @default([])
+  /// Orders cards within a board column (and subtasks within a parent). Lower comes first.
+  position    Float        @default(0)
+  projectId   String?
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  milestoneId String?
+  milestone   Milestone?   @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  parentId    String?
+  parent      Task?        @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks    Task[]       @relation("Subtasks")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, position])
+  @@index([projectId])
+  @@index([parentId])
+  @@index([dueDate])
+}
+
+model NoteFolder {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  notes     Note[]
+}
+
+model Note {
+  id        String      @id @default(cuid())
+  title     String      @default("")
+  content   String      @default("") @db.Text
+  tags      String[]    @default([])
+  pinned    Boolean     @default(false)
+  folderId  String?
+  folder    NoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([updatedAt])
+  @@index([folderId])
+}
