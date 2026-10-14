@@ -308,7 +308,7 @@ export async function prepareRegenerate(conversationId: string, input: { modelId
   };
 }
 
-async function resolveCost(
+export async function resolveCost(
   modelId: string,
   apiKey: string,
   usage: UsageInfo | null,

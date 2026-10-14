@@ -22,3 +22,20 @@ export function countWords(text: string): number {
   const matches = text.trim().match(/\S+/g);
   return matches ? matches.length : 0;
 }
+
+const SUMMARY_START = "<!-- omni-summary -->";
+const SUMMARY_END = "<!-- /omni-summary -->";
+const SUMMARY_PATTERN = new RegExp(`${SUMMARY_START}[\\s\\S]*?${SUMMARY_END}\\s*`);
+
+/**
+ * Puts a confirmed AI summary at the top of a note as a "Summary" section. A summary added earlier by this
+ * function is replaced rather than stacked, so summarizing again refreshes it.
+ */
+export function insertSummary(content: string, summary: { summary: string; keyPoints: string[] }): string {
+  const lines = [SUMMARY_START, "## Summary", "", summary.summary.trim()];
+  if (summary.keyPoints.length > 0) lines.push("", ...summary.keyPoints.map((point) => `- ${point}`));
+  lines.push(SUMMARY_END);
+
+  const rest = content.replace(SUMMARY_PATTERN, "").replace(/^\s+/, "");
+  return rest ? `${lines.join("\n")}\n\n${rest}` : `${lines.join("\n")}\n`;
+}
