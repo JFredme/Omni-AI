@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MessageRole {
+  system
+  user
+  assistant
+}
+
+enum MessageStatus {
+  streaming
+  complete
+  stopped
+  error
+}
+
+enum UsageStatus {
+  complete
+  stopped
+  error
+}
+
+enum CostSource {
+  openrouter
+  estimated
+  unknown
+}
+
+/// Single-row table (id = 1) holding workspace-level OpenRouter settings.
+model AppSettings {
+  id               Int       @id @default(1)
+  encryptedApiKey  String?   @db.Text
+  apiKeyLast4      String?
+  apiKeyUpdatedAt  DateTime?
+  defaultModelId   String?
+  favoriteModelIds String[]  @default([])
+  monthlyBudgetUsd Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Conversation {
+  id           String        @id @default(cuid())
+  title        String        @default("New chat")
+  modelId      String?
+  systemPrompt String?       @db.Text
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  messages     Message[]
+  usage        UsageRecord[]
+
+  @@index([updatedAt])
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String        @db.Text
+  modelId        String?
+  status         MessageStatus @default(complete)
+  error          String?       @db.Text
+  createdAt      DateTime      @default(now())
+  usage          UsageRecord?
+
+  @@index([conversationId, createdAt])
+}
+
+model UsageRecord {
+  id               String        @id @default(cuid())
+  createdAt        DateTime      @default(now())
+  conversationId   String?
+  conversation     Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  messageId        String?       @unique
+  message          Message?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  modelId          String
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  costUsd          Float?
+  costSource       CostSource    @default(unknown)
+  status           UsageStatus
+
+  @@index([createdAt])
+}
