@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { navItems, navSections, isActivePath, type NavItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +46,16 @@ function NavLink({
       )}
     </Link>
   );
+}
+
+async function signOut() {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } finally {
+    // A full page load, so nothing from the signed-in session stays in the client cache.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign("/login");
+  }
 }
 
 function Mark() {
@@ -98,8 +108,20 @@ export function NavContent({
       </nav>
 
       {settings ? (
-        <div className="border-t border-sidebar-border px-2 py-2">
+        <div className="space-y-0.5 border-t border-sidebar-border px-2 py-2">
           <NavLink item={settings} collapsed={collapsed} onNavigate={onNavigate} />
+          <button
+            type="button"
+            onClick={signOut}
+            title={collapsed ? "Sign out" : undefined}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-[13.5px] text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <LogOut className="size-[17px] shrink-0" strokeWidth={1.6} aria-hidden />
+            {collapsed ? <span className="sr-only">Sign out</span> : <span>Sign out</span>}
+          </button>
         </div>
       ) : null}
     </>

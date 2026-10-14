@@ -2,6 +2,7 @@
 // Requires the app running against the mock OpenRouter server (scripts/e2e.mjs starts everything).
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
+import { addSession, sessionHeaders } from "./session.mjs";
 
 const baseUrl = process.env.OMNI_BASE_URL ?? "http://localhost:3100";
 const VALID_KEY = "sk-or-v1-e2e-valid-key-123456";
@@ -9,6 +10,7 @@ const screenshotDir = process.env.OMNI_SCREENSHOT_DIR;
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+await addSession(context);
 const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
@@ -17,7 +19,7 @@ page.on("console", (message) => {
 });
 
 async function api(path, init = {}) {
-  const response = await fetch(`${baseUrl}${path}`, { headers: { "Content-Type": "application/json" }, ...init });
+  const response = await fetch(`${baseUrl}${path}`, { headers: sessionHeaders({ "Content-Type": "application/json" }), ...init });
   return { status: response.status, body: await response.json() };
 }
 
@@ -440,6 +442,7 @@ try {
 
   await check("mobile: tasks, notes, and projects fit the screen without sideways scrolling", async () => {
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await addSession(mobile);
     const phone = await mobile.newPage();
     for (const path of ["/tasks", "/notes", "/projects"]) {
       await phone.goto(`${baseUrl}${path}`, { waitUntil: "networkidle" });

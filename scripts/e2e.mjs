@@ -1,5 +1,5 @@
 // Runs the end-to-end suite: mock OpenRouter, a fresh e2e database, a production build of the app,
-// then the browser tests (e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, and e2e/agents.mjs). Requires Google Chrome installed.
+// then the browser tests (e2e/auth.mjs, e2e/smoke.mjs, e2e/chat.mjs, e2e/productivity.mjs, and e2e/agents.mjs). Requires Google Chrome installed.
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -67,6 +67,18 @@ try {
   start("npx", ["next", "start", "-p", String(APP_PORT)]);
   await waitForHttp(`${baseUrl}/`);
   await waitForHttp(`http://localhost:${MOCK_PORT}/api/v1/models`);
+
+  runOrFail("node", ["e2e/auth.mjs"]);
+
+  // Sign in once; every other suite reuses this session.
+  const login = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: process.env.E2E_PASSWORD ?? "e2e-password-123" }),
+  });
+  const cookie = login.headers.get("set-cookie")?.match(/omni_session=([^;]+)/)?.[1];
+  if (!login.ok || !cookie) throw new Error(`Could not sign in for the e2e run (HTTP ${login.status}).`);
+  env.E2E_SESSION = decodeURIComponent(cookie);
 
   runOrFail("node", ["e2e/smoke.mjs"]);
   runOrFail("node", ["e2e/chat.mjs"]);

@@ -274,3 +274,33 @@ model AgentStep {
 
   @@unique([runId, index])
 }
+
+/// The single owner's password. Row id is always 1, so a second setup attempt fails on the primary key.
+model AuthConfig {
+  id           Int      @id @default(1)
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// A signed-in browser. Only a SHA-256 of the cookie token is stored, never the token itself.
+model AuthSession {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+}
+
+/// Security-relevant events. `detail` never contains secrets.
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

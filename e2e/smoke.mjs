@@ -2,6 +2,7 @@
 // and an installed Chrome. Set OMNI_BASE_URL to override the default http://localhost:3000.
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
+import { addSession } from "./session.mjs";
 
 const baseUrl = process.env.OMNI_BASE_URL ?? "http://localhost:3000";
 const screenshotDir = process.env.OMNI_SCREENSHOT_DIR;
@@ -12,6 +13,7 @@ const errors = [];
 
 async function newPage(viewport, colorScheme = "light") {
   const context = await browser.newContext({ viewport, colorScheme });
+  await addSession(context);
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {

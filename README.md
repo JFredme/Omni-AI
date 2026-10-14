@@ -15,7 +15,7 @@ This repository is at **Part 4 (in progress): the agent framework is done; memor
 | Streaming chat (stop, regenerate, retry, model switching, system instructions, rename, delete) | Done |
 | Persistent conversations and messages (PostgreSQL via Prisma) | Done |
 | Usage tracking (tokens, cost, 30-day breakdown), monthly spending limit | Done |
-| Accounts and sign-in | Not started (see Security) |
+| Password sign-in, protected pages and API, rate limiting, audit log | Done (see Security) |
 | File attachments, image input, tool calling, JSON mode, branching, memory | Not started |
 | Tasks (priorities, due dates, subtasks, tags, search, filters, sorting, Kanban board) | Done (Part 3) |
 | Notes (Markdown, autosave, folders, tags, search, pinning) | Done (Part 3) |
@@ -154,7 +154,12 @@ The model is asked for JSON and the reply is validated; if it isn't usable you s
 
 ## Security
 
-- **There is no sign-in yet.** Every API route is unauthenticated, so anyone who can reach the server can read your conversations, tasks, notes, and projects, and spend against your saved key. The dev and start scripts bind to `127.0.0.1` for this reason. Don't expose the server to a network until accounts are added.
+- **Sign-in.** The first time you open the app it asks you to set a password. After that every page and every API route requires a session (a 30-day, HTTP-only cookie). Only a hash of the cookie token is stored in the database, and passwords are hashed with scrypt. Anyone who can reach the server before you set the password can claim it, so set it right away and don't expose a fresh install to a network.
+- **Forgot the password?** There's no email reset. Run `TRUNCATE "AuthConfig", "AuthSession";` in your database, then open the app and set a new one.
+- **Protection against forged requests.** Writes from another site are refused (the `Origin` header must match the host), and the cookie is `SameSite=Lax`.
+- **Rate limits.** 8 wrong passwords per 15 minutes, 600 writes per minute, and 40 model-spending requests per minute. They live in memory, so they reset when the server restarts. Behind a reverse proxy, set `TRUST_PROXY=1` so limits use the real client address from `X-Forwarded-For`.
+- **Audit log.** Sign-ins, failures, lock-outs, sign-outs and password changes are recorded and shown in Settings. It never contains passwords or keys.
+- The server still binds to `127.0.0.1` by default. If you put it behind HTTPS, the cookie is marked `Secure` automatically.
 - Model output is rendered as Markdown without raw HTML, and links open in a new tab with `rel="noopener noreferrer"`.
 - Server errors return a generic message. Details go to the server log.
 

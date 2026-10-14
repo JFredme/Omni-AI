@@ -2,6 +2,7 @@
 // OpenRouter server (see scripts/e2e.mjs, which starts everything).
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
+import { addSession } from "./session.mjs";
 
 const baseUrl = process.env.OMNI_BASE_URL ?? "http://localhost:3100";
 const VALID_KEY = "sk-or-v1-e2e-valid-key-123456";
@@ -10,6 +11,7 @@ const WRONG_KEY = "sk-or-v1-wrong-key-000000";
 const screenshotDir = process.env.OMNI_SCREENSHOT_DIR;
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+await addSession(context);
 const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));

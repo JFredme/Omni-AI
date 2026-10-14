@@ -29,8 +29,8 @@ Stack: Next.js 16.4 (App Router, `cacheComponents`), React 19, TypeScript, Tailw
 - **Automations** (workflow builder and background execution; reuse the agent run engine's resumable-loop approach).
 - **Coding workspace** (Monaco, sandboxed execution: must not run AI commands on the host without isolation and approval).
 - **Document generation** (PDF/DOCX/PPTX/XLSX libraries), **integrations** (OAuth for Gmail, Calendar, Drive, GitHub, Notion, Todoist, Discord, Slack).
-- **Universal AI command bar**, **analytics dashboard**, **real home dashboard data** (home still shows module cards and a static status list).
-- **Security:** authentication, protected routes, rate limiting, audit log, secure uploads. Every API route is currently unauthenticated; the server binds to 127.0.0.1.
+- **Universal AI command bar**, **analytics dashboard**, **real home dashboard data** (done: home is now real data from `/api/dashboard`).
+- **Security still open:** secure uploads (arrives with attachments/knowledge base). Auth, protected routes, CSRF origin check, rate limits and the audit log are done (`src/proxy.ts`, `src/lib/auth/*`).
 - **Docker** configuration; **.env.example** exists but should be reviewed when new variables appear.
 - Built-in agents still missing (they need tools that don't exist yet): Research, Coding, Email, Calendar, Document Analyst, Data Analyst, Automation.
 
