@@ -8,9 +8,11 @@ export type VoiceKind = "stt" | "tts";
 export interface VoiceModel {
   id: string;
   name: string;
-  /** USD per second of audio (hearing) or per character (speaking). */
+  /** USD per second of audio (hearing) or per character (speaking). Meaningless when `perToken` is true. */
   price: number;
   free: boolean;
+  /** Priced per token instead (some OpenAI and Google models). Those can't be compared with per-second or per-character prices. */
+  perToken: boolean;
   voices: string[];
 }
 
@@ -29,7 +31,7 @@ const TTL_MS = 15 * 60 * 1000;
 const cache = new Map<string, { at: number; models: VoiceModel[] }>();
 
 export function normalizeVoiceModel(raw: unknown): VoiceModel | null {
-  const model = raw as { id?: unknown; name?: unknown; pricing?: { prompt?: unknown }; supported_voices?: unknown };
+  const model = raw as { id?: unknown; name?: unknown; pricing?: { prompt?: unknown; completion?: unknown }; supported_voices?: unknown };
   if (!model || typeof model.id !== "string") return null;
   const price = Number(model.pricing?.prompt);
   if (!Number.isFinite(price) || price < 0) return null;
@@ -38,13 +40,14 @@ export function normalizeVoiceModel(raw: unknown): VoiceModel | null {
     name: typeof model.name === "string" ? model.name : model.id,
     price,
     free: price === 0,
+    perToken: Number(model.pricing?.completion) > 0,
     voices: Array.isArray(model.supported_voices) ? model.supported_voices.filter((voice): voice is string => typeof voice === "string") : [],
   };
 }
 
-/** Cheapest first. Free models sort last. */
+/** Cheapest first. Only models priced the same way (per second or per character) can be compared, so token-priced ones and free ones go last. */
 export function sortByPrice(models: VoiceModel[]): VoiceModel[] {
-  return [...models].sort((a, b) => Number(a.free) - Number(b.free) || a.price - b.price || a.id.localeCompare(b.id));
+  return [...models].sort((a, b) => Number(a.free) - Number(b.free) || Number(a.perToken) - Number(b.perToken) || a.price - b.price || a.id.localeCompare(b.id));
 }
 
 export async function listVoiceModels(kind: VoiceKind, options: { refresh?: boolean; signal?: AbortSignal } = {}): Promise<VoiceModel[]> {
@@ -64,15 +67,18 @@ export async function listVoiceModels(kind: VoiceKind, options: { refresh?: bool
   }
 }
 
+/** Models that can be picked automatically: paid, and priced per second or per character so the cheapest is knowable. */
+export const isAutoChoice = (model: VoiceModel) => !model.free && !model.perToken;
+
 /** Models to try, in order: the one asked for, else the cheapest paid ones (so a failing model falls through to the next). */
 export async function voiceModelChoices(kind: VoiceKind, requested?: string | null, count = 3): Promise<{ id: string; model: VoiceModel | undefined }[]> {
   const models = await listVoiceModels(kind);
-  const ids = requested ? [requested] : models.filter((model) => !model.free).slice(0, count).map((model) => model.id);
+  const ids = requested ? [requested] : models.filter(isAutoChoice).slice(0, count).map((model) => model.id);
   if (ids.length === 0) ids.push(DEFAULT_VOICE_MODELS[kind]);
   return ids.map((id) => ({ id, model: models.find((model) => model.id === id) }));
 }
 
 /** What a request cost, from the model's published price. An estimate: OpenRouter's own figure can differ slightly. */
 export function estimateVoiceCost(model: VoiceModel | undefined, amount: number): number | null {
-  return model ? Math.round(model.price * amount * 1e8) / 1e8 : null;
+  return model && !model.perToken ? Math.round(model.price * amount * 1e8) / 1e8 : null;
 }

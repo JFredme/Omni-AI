@@ -1,12 +1,12 @@
 import { errorResponse } from "@/lib/api-route";
-import { defaultVoiceFor, listVoiceModels } from "@/lib/voice/models";
+import { defaultVoiceFor, isAutoChoice, listVoiceModels } from "@/lib/voice/models";
 
 /** The voice models OpenRouter lists, cheapest first, and the ones Omni uses by default. */
 export async function GET(request: Request) {
   try {
     const refresh = new URL(request.url).searchParams.get("refresh") === "1";
     const [stt, tts] = await Promise.all([listVoiceModels("stt", { refresh }), listVoiceModels("tts", { refresh })]);
-    const paid = <T extends { free: boolean }>(models: T[]) => models.filter((model) => !model.free);
+    const paid = <T extends Parameters<typeof isAutoChoice>[0]>(models: T[]) => models.filter(isAutoChoice);
     return Response.json({
       stt: stt.slice(0, 40),
       tts: tts.slice(0, 40),

@@ -1,4 +1,8 @@
-# OMNI AI 0.5.0: voice mode
+# OMNI AI 0.5.1
+
+**Fix:** voice mode picked the wrong "cheapest" models because some are priced per token and others per second or character. It now compares only like with like, so hearing uses the cheapest per-second model and speaking uses Kokoro (about $0.0006 per thousand characters).
+
+# 0.5.0: voice mode
 
 - **Voice mode.** Tap the sound-wave button in the message box (or type `/voice`) and just talk. Omni listens, thinks, answers out loud, and you can interrupt it any time. It uses OpenRouter's cheapest speech-to-text and text-to-speech models (live from the catalog), costs a few cents an hour plus your chat model, and saves the conversation as a normal chat.
 - The microphone works in the Mac and Windows apps (the first time, macOS and Windows ask for permission). On Android it needs an `https` server address; over a plain `http://` address Omni says so instead of listening.
