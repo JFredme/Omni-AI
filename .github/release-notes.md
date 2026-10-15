@@ -1,4 +1,8 @@
-# OMNI AI 0.3.2: a smoother phone experience
+# OMNI AI 0.3.3
+
+**Fix:** on some phones the page drew underneath the status bar and the bottom bar. It now stays between them.
+
+# 0.3.2: a smoother phone experience
 
 - Pages now fit phone screens: nothing runs off the edge, buttons are easier to tap, and the keyboard no longer covers the message box.
 - No more accidental zooming or pull-down refresh.

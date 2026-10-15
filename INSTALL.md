@@ -1,6 +1,6 @@
 # Installing OMNI AI
 
-Current version: 0.3.2. Get the apps from the repository's Releases page.
+Current version: 0.3.3. Get the apps from the repository's Releases page.
 
 ## Downloads
 

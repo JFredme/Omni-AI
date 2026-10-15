@@ -22,7 +22,6 @@ const code = JetBrains_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
   interactiveWidget: "resizes-content", // The keyboard shrinks the page instead of covering the message box.
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f6f2ea" },
