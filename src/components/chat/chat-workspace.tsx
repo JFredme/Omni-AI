@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, BookOpen, Menu, Pencil, Search } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { describeError, useModelCatalog } from "@/components/chat/use-model-catalog";
 import { LiveReply, Transcript } from "@/components/chat/transcript";
+import { VoiceMode } from "@/components/chat/voice-mode";
 import { ChatMenu } from "@/components/chat/chat-menu";
 import { SummaryDialog } from "@/components/chat/summary-dialog";
 import { useStickToBottom } from "@/components/chat/use-stick-to-bottom";
@@ -92,6 +94,8 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   const abortRef = useRef<AbortController | null>(null);
   const [useKnowledge, setUseKnowledge] = useKnowledgeToggle();
   const [webMode, setWebMode] = useWebMode();
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const router = useRouter();
   const searchingRef = useRef(false);
   const liveTextRef = useRef("");
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -501,6 +505,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
             onNewChat={startNewChat}
             web={webMode}
             onWebChange={setWebMode}
+            onVoice={() => setVoiceOpen(true)}
             canReadImages={selectedModel ? selectedModel.capabilities.imageInput : true}
             modelName={selectedModel?.name}
             onStop={() => abortRef.current?.abort()}
@@ -521,6 +526,19 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <StarterGrid disabled={!keyConfigured} onPick={(prompt) => leaveChatDraft(prompt)} />
         </div>
+      ) : null}
+
+      {voiceOpen ? (
+        <VoiceMode
+          modelId={selectedModelId}
+          onClose={(conversationId) => {
+            setVoiceOpen(false);
+            if (conversationId) {
+              void refreshConversations();
+              router.push(`/chat/${conversationId}`);
+            }
+          }}
+        />
       ) : null}
 
       {summaryOpen && current ? <SummaryDialog conversationId={current.id} title={current.title} onClose={() => setSummaryOpen(false)} /> : null}

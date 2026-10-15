@@ -1,4 +1,9 @@
-# OMNI AI 0.4.0: live web, agentic, smoother replies
+# OMNI AI 0.5.0: voice mode
+
+- **Voice mode.** Tap the sound-wave button in the message box (or type `/voice`) and just talk. Omni listens, thinks, answers out loud, and you can interrupt it any time. It uses OpenRouter's cheapest speech-to-text and text-to-speech models (live from the catalog), costs a few cents an hour plus your chat model, and saves the conversation as a normal chat.
+- The microphone works in the Mac and Windows apps (the first time, macOS and Windows ask for permission). On Android it needs an `https` server address; over a plain `http://` address Omni says so instead of listening.
+
+# 0.4.0: live web, agentic, smoother replies
 
 - **Live web data.** Chat can search the web (OpenRouter's built-in search, no extra key). The globe in the message box switches between Auto, Web on and Web off. Web pages used are shown under the reply.
 - **Gemini-style replies.** Words ease in as they arrive, with a shimmer while the model thinks.

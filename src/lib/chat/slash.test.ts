@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { matchSlash, parseSlash, SLASH_COMMANDS } from "./slash";
 
 describe("slash commands", () => {
-  it("has unique names, and every command either goes somewhere or needs text or is the new-chat action", () => {
+  it("has unique names, and every command either goes somewhere or needs text or is an action like new chat or voice", () => {
     const names = SLASH_COMMANDS.map((command) => command.name);
     expect(new Set(names).size).toBe(names.length);
-    for (const command of SLASH_COMMANDS) expect(Boolean(command.href) || Boolean(command.argument) || command.name === "new", command.name).toBe(true);
+    for (const command of SLASH_COMMANDS) expect(Boolean(command.href) || Boolean(command.argument) || command.name === "new" || command.name === "voice", command.name).toBe(true);
   });
 
   it("suggests commands while the name is being typed, and stops once there's a space", () => {

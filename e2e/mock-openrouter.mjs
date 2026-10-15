@@ -273,6 +273,31 @@ const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://localhost:${port}`);
   if (await handleServices(request, response, url)) return;
 
+  if (request.method === "GET" && url.pathname === "/api/v1/models" && url.searchParams.get("output_modalities") === "transcription") {
+    return json(response, 200, { data: [{ id: "mock/asr-cheap", name: "Mock ASR", pricing: { prompt: "0.000003", completion: "0" } }, { id: "mock/asr-free:free", name: "Mock ASR free", pricing: { prompt: "0", completion: "0" } }] });
+  }
+  if (request.method === "GET" && url.pathname === "/api/v1/models" && url.searchParams.get("output_modalities") === "speech") {
+    return json(response, 200, { data: [{ id: "mock/tts-cheap", name: "Mock TTS", pricing: { prompt: "0.0000006", completion: "0" }, supported_voices: ["af_heart", "am_adam"] }] });
+  }
+  if (request.method === "POST" && url.pathname === "/api/v1/audio/transcriptions") {
+    if (!authorized(request)) return json(response, 401, { error: { code: 401, message: "No auth credentials found" } });
+    for await (const part of request) void part;
+    return json(response, 200, { text: "Hello from the microphone test", usage: { seconds: 2 } });
+  }
+  if (request.method === "POST" && url.pathname === "/api/v1/audio/speech") {
+    if (!authorized(request)) return json(response, 401, { error: { code: 401, message: "No auth credentials found" } });
+    for await (const part of request) void part;
+    // A short quiet tone, as a WAV (the browser decodes it by content, whatever the header says).
+    const rate = 16000;
+    const count = Math.floor(rate * 0.4);
+    const wav = Buffer.alloc(44 + count * 2);
+    wav.write("RIFF", 0); wav.writeUInt32LE(36 + count * 2, 4); wav.write("WAVE", 8); wav.write("fmt ", 12); wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+    wav.write("data", 36); wav.writeUInt32LE(count * 2, 40);
+    for (let i = 0; i < count; i += 1) wav.writeInt16LE(Math.round(Math.sin((i / rate) * 2 * Math.PI * 440) * 3000), 44 + i * 2);
+    response.writeHead(200, { "Content-Type": "audio/mpeg" });
+    return response.end(wav);
+  }
   if (request.method === "GET" && url.pathname === "/api/v1/models") {
     return json(response, 200, { data: models, total_count: models.length, links: { next: null } });
   }

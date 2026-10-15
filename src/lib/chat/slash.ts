@@ -14,6 +14,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: "task", title: "Add a task", description: "Put something on your task list", argument: "what needs doing" },
   { name: "note", title: "Save a note", description: "Write a quick note", argument: "what to write down" },
   { name: "remember", title: "Remember this", description: "Save a fact for future chats", argument: "what to remember" },
+  { name: "voice", title: "Voice mode", description: "Talk with Omni out loud" },
   { name: "do", title: "Do it for me", description: "Let the Computer Assistant work on a goal, asking before it acts", argument: "what you want done" },
   { name: "new", title: "New chat", description: "Start a fresh conversation" },
   { name: "today", title: "Today", description: "What's due and scheduled", href: "/today" },

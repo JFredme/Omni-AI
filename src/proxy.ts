@@ -4,6 +4,8 @@ import { validateSession } from "@/lib/auth/session";
 import { hit } from "@/lib/rate-limit";
 
 // Requests that spend money on the model get a tighter limit than everything else.
+// Voice makes many small requests per conversation (one to hear you, one per spoken sentence), so it has its own, higher limit.
+const VOICE = /^\/api\/voice\/(transcribe|speak)$/;
 const EXPENSIVE = [/^\/api\/conversations\/[^/]+\/(messages|regenerate)$/, /^\/api\/ai\/(propose|apply)$/, /^\/api\/agent-runs$/, /^\/api\/research$/, /^\/api\/compare$/, /^\/api\/code\/(assist|projects\/[^/]+\/run)$/];
 
 /** Per-minute limits can be raised for load tests or automated runs; the defaults suit one person. */
@@ -52,8 +54,9 @@ export async function proxy(request: NextRequest) {
     const key = token ? token.slice(0, 16) : "local";
     const expensive = request.method === "POST" && EXPENSIVE.some((pattern) => pattern.test(pathname));
     const general = hit(`api:${key}`, limitFromEnv("OMNI_API_RATE_LIMIT", 600), 60_000);
+    const voice = request.method === "POST" && VOICE.test(pathname) ? hit(`voice:${key}`, limitFromEnv("OMNI_VOICE_RATE_LIMIT", 300), 60_000) : null;
     const spending = expensive ? hit(`ai:${key}`, limitFromEnv("OMNI_AI_RATE_LIMIT", 40), 60_000) : null;
-    const blocked = !general.allowed ? general : spending && !spending.allowed ? spending : null;
+    const blocked = !general.allowed ? general : spending && !spending.allowed ? spending : voice && !voice.allowed ? voice : null;
     if (blocked) {
       return json(429, "rate_limited", "You're sending requests too quickly. Wait a moment and try again.", { "Retry-After": String(blocked.retryAfterSeconds) });
     }

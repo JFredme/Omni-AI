@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { AlertCircle, ArrowUp, Check, FileText, Globe, Image as ImageIcon, Loader2, Paperclip, Slash, Square, X } from "lucide-react";
+import { AlertCircle, ArrowUp, AudioLines, Check, FileText, Globe, Image as ImageIcon, Loader2, Paperclip, Slash, Square, X } from "lucide-react";
 import { SlashMenu } from "@/components/chat/slash-menu";
 import { apiRequest, ClientApiError } from "@/lib/client/api";
 import { CHAT_DRAFT_EVENT, CHAT_DRAFT_KEY } from "@/lib/chat/draft";
@@ -29,6 +29,7 @@ export function Composer({
   onNewChat,
   web,
   onWebChange,
+  onVoice,
   streaming,
   disabled,
   disabledReason,
@@ -45,6 +46,8 @@ export function Composer({
   /** Whether replies may search the live web: automatically, always, or never. */
   web?: WebMode;
   onWebChange?: (mode: WebMode) => void;
+  /** Starts a spoken conversation. */
+  onVoice?: () => void;
   placeholder?: string;
   /** False when the chosen model can't take images; image files are then refused with a reason. */
   canReadImages?: boolean;
@@ -158,6 +161,10 @@ export function Composer({
       } else if (command.name === "note") {
         const made = await apiRequest<{ note: { id: string } }>("/api/notes", { json: { title: text.split("\n")[0].slice(0, 80), content: text } });
         setNotice({ kind: "ok", text: "Note saved", href: `/notes/${made.note.id}`, linkLabel: "Open note" });
+      } else if (command.name === "voice") {
+        clear();
+        onVoice?.();
+        return;
       } else if (command.name === "do") {
         const settings = await apiRequest<{ computerControl: boolean }>("/api/settings");
         if (!settings.computerControl) {
@@ -406,6 +413,18 @@ export function Composer({
                 <Square className="size-3.5 fill-current" aria-hidden />
               </button>
             ) : (
+              <>
+                {onVoice && !canSend ? (
+                  <button
+                    type="button"
+                    onClick={onVoice}
+                    aria-label="Start voice mode"
+                    title="Talk with Omni out loud"
+                    className="ml-auto grid size-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:ml-0"
+                  >
+                    <AudioLines className="size-[19px]" aria-hidden />
+                  </button>
+                ) : null}
               <button
                 type="button"
                 onClick={submit}
@@ -418,6 +437,7 @@ export function Composer({
               >
                 <ArrowUp className="size-[18px]" aria-hidden />
               </button>
+              </>
             )}
           </div>
         </div>

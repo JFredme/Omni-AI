@@ -1,6 +1,6 @@
 // OMNI AI desktop app. Starts a private PostgreSQL database and the OMNI server on this computer, then shows them in a window.
 // Nothing leaves the machine except the AI requests you make. Data lives in the app's data folder (see README).
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, session, shell, systemPreferences } = require("electron");
 const { execFileSync, spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -269,6 +269,19 @@ async function launch() {
     const secrets = loadSecrets(dataDir);
     const databaseUrl = await startDatabase(dataDir, secrets);
     const port = await startServer(databaseUrl, secrets);
+    // The microphone is for voice mode, and only for the app's own page.
+    session.defaultSession.setPermissionCheckHandler((_contents, permission, origin) => permission === "media" && isAppUrl(origin, port));
+    session.defaultSession.setPermissionRequestHandler(async (_contents, permission, callback, details) => {
+      if (permission !== "media" || !isAppUrl(details.requestingUrl, port)) return callback(false);
+      if (process.platform === "darwin") {
+        try {
+          return callback(await systemPreferences.askForMediaAccess("microphone"));
+        } catch {
+          return callback(false);
+        }
+      }
+      return callback(true);
+    });
     phone = createPhoneBridge({ targetPort: port, log });
     ipcMain.handle("phone:state", () => phone.state());
     ipcMain.handle("phone:set", (_event, enabled) => (enabled ? phone.enable() : phone.disable()));

@@ -152,6 +152,15 @@ The assistant uses the same OpenRouter key, default model, spending limit, and u
 
 The model is asked for JSON and the reply is validated; if it isn't usable you see a specific error and can retry (the attempt still appears in usage). Each AI request is recorded in usage like a chat reply.
 
+## Voice mode
+
+Tap the sound-wave button in the message box (or type `/voice`) to talk with Omni out loud. It is hands-free: it hears when you stop talking, thinks, answers in a voice, and goes back to listening. Talk over it at any time to interrupt. Muting, an Interrupt button and a voice picker are on the screen. The conversation is saved as a normal chat, so you can read it afterwards.
+
+- **Models.** Voice uses OpenRouter's own speech models, and by default the cheapest paid one of each kind, read from the live catalog: speech-to-text (hearing you) and text-to-speech (speaking). If one fails, it tries the next cheapest. Free test models are never chosen automatically. The brain is the chat model you picked.
+- **Cost.** Hearing is a fraction of a cent per minute and speaking about a cent per 30 minutes; the chat model is the larger part. The estimated cost of each request is added to your usage totals.
+- **Where it works.** Browsers only allow the microphone on `localhost` or `https`, so voice works in the Mac and Windows apps and in a browser on the same computer. The Android app, when connected by a plain `http://` address (like the phone connection from the desktop app), shows a message instead of listening. Voice on the phone needs an `https` server address.
+- **Privacy.** Your voice is sent to OpenRouter (and the speech provider it routes to) for transcription, and the replies are sent for speech, so don't use it for things you wouldn't send to those services.
+
 ## Letting agents use your computer
 
 Off by default. In **Settings → Let agents use this computer** you can allow the **Computer Assistant** agent (and any agent you give the tools to) to run shell commands, list folders, read and write text files, and open apps, files and web pages on the computer OMNI runs on. This is what makes `/do` agentic.
@@ -266,7 +275,7 @@ Open **Analytics** for 7, 30, or 90 days of your own data: tasks created and fin
 
 ## Apps (Mac, Windows, Android)
 
-Current version: **0.4.0** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; see [INSTALL.md](INSTALL.md); each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
+Current version: **0.5.0** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; see [INSTALL.md](INSTALL.md); each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
 
 The home screen is the chat. Other sections live under **Workspace** in the sidebar or via slash commands (type `/`); the old dashboard is at `/today`.
 
