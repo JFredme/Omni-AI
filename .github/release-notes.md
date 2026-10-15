@@ -1,4 +1,8 @@
-# OMNI AI 0.3.0: connect your phone
+# OMNI AI 0.3.1
+
+**Fix:** the Android app showed "Can't reach your server" when connecting to a computer's phone access, even though the connection worked. The computer's code page now loads normally. Update the Mac or Windows app to 0.3.1 (the Android app itself is unchanged).
+
+# 0.3.0: connect your phone
 
 **New in 0.3.0:** the Mac and Windows apps can now serve your phone. Choose **Phone → Connect your phone…**, turn it on, and type the address and 6-digit code into the Android app. The Android app also now accepts a plain address like `192.168.1.20:47832`. (0.2.0 brought the chat-first redesign below.)
 

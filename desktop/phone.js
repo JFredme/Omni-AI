@@ -32,6 +32,11 @@ style="width:100%;box-sizing:border-box;font:600 28px ui-monospace,monospace;let
 ${message ? `<p style="color:#b3261e;margin-top:1rem">${message}</p>` : ""}`);
 }
 
+// The Android app shows "can't reach your server" for any error status on a page, so people's browsers and web views
+// get the code page as a normal 200. Everything else (scripts, API calls) still gets the real status.
+const wantsPage = (req) => (req.headers.accept ?? "").includes("text/html");
+const statusFor = (req, status) => (wantsPage(req) ? 200 : status);
+
 function createPhoneBridge({ targetPort, log }) {
   let listener = null;
   let port = null;
@@ -66,7 +71,7 @@ function createPhoneBridge({ targetPort, log }) {
     if (req.method === "POST" && req.url === "/__pair") {
       const mark = wrong.get(who) ?? { count: 0, until: 0 };
       if (mark.until > Date.now()) {
-        res.writeHead(429, { "content-type": "text/html" });
+        res.writeHead(statusFor(req, 429), { "content-type": "text/html" });
         return res.end(pinPage("Too many tries. Wait a minute and try again."));
       }
       const submitted = new URLSearchParams(await readBody(req)).get("code")?.trim() ?? "";
@@ -83,12 +88,12 @@ function createPhoneBridge({ targetPort, log }) {
       mark.count += 1;
       if (mark.count >= MAX_WRONG) Object.assign(mark, { count: 0, until: Date.now() + PAUSE_MS });
       wrong.set(who, mark);
-      res.writeHead(401, { "content-type": "text/html" });
+      res.writeHead(statusFor(req, 401), { "content-type": "text/html" });
       return res.end(pinPage("That code is not right."));
     }
 
     // Anything else without a session just gets the code page (never any data).
-    res.writeHead(401, { "content-type": "text/html", "cache-control": "no-store" });
+    res.writeHead(statusFor(req, 401), { "content-type": "text/html", "cache-control": "no-store" });
     res.end(pinPage(""));
   }
 

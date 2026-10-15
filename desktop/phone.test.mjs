@@ -20,6 +20,10 @@ test("phone access is closed until the code is entered, then forwards to the ser
   assert.equal(blocked.status, 401);
   assert.ok(!(await blocked.text()).includes("secret"));
 
+  const asPage = await fetch(`${root}/`, { headers: { accept: "text/html" } });
+  assert.equal(asPage.status, 200, "a web view must see the code page as a normal page");
+  assert.ok((await asPage.text()).includes("6-digit code"));
+
   const bad = await fetch(`${root}/__pair`, { method: "POST", body: "code=000000", headers: { "content-type": "application/x-www-form-urlencoded" }, redirect: "manual" });
   assert.equal(bad.status, 401);
 
