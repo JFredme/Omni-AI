@@ -17,12 +17,15 @@ export interface SettingsView {
   defaultModelId: string | null;
   favoriteModelIds: string[];
   monthlyBudgetUsd: number | null;
+  /** Whether agents may ask to use this computer. */
+  computerControl: boolean;
 }
 
 export interface SettingsPatch {
   defaultModelId?: string | null;
   favoriteModelIds?: string[];
   monthlyBudgetUsd?: number | null;
+  computerControl?: boolean;
 }
 
 const SETTINGS_ID = 1;
@@ -50,6 +53,7 @@ export async function getSettingsView(): Promise<SettingsView> {
     defaultModelId: row.defaultModelId,
     favoriteModelIds: row.favoriteModelIds,
     monthlyBudgetUsd: row.monthlyBudgetUsd,
+    computerControl: row.computerControl,
   };
 }
 
@@ -120,6 +124,7 @@ export async function updateSettings(patch: SettingsPatch): Promise<SettingsView
       ...(patch.defaultModelId !== undefined ? { defaultModelId: patch.defaultModelId } : {}),
       ...(patch.favoriteModelIds !== undefined ? { favoriteModelIds: [...new Set(patch.favoriteModelIds)] } : {}),
       ...(patch.monthlyBudgetUsd !== undefined ? { monthlyBudgetUsd: patch.monthlyBudgetUsd } : {}),
+      ...(patch.computerControl !== undefined ? { computerControl: patch.computerControl } : {}),
     },
   });
   return getSettingsView();

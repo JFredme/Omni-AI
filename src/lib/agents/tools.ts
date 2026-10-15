@@ -1,4 +1,5 @@
 import { z, type ZodType } from "zod";
+import { COMPUTER_TOOLS } from "./computer-tools";
 import { INTEGRATION_TOOLS } from "./integration-tools";
 import { addDays, dateKeySchema, localDateKey } from "@/lib/dates";
 import { MAX_NOTE_CONTENT } from "@/lib/notes/schemas";
@@ -27,8 +28,9 @@ export interface ToolContext {
 export interface ToolDef {
   name: string;
   description: string;
-  /** "write" tools change the user's data or spend money; built-in agents ask before running them. */
-  risk: "read" | "write";
+  /** "write" tools change the user's data or spend money; built-in agents ask before running them. "computer" tools use the
+   *  machine OMNI runs on: they exist only when the owner allows it, and always ask first. */
+  risk: "read" | "write" | "computer";
   /** A one-line description of the arguments, shown to the model. */
   usage: string;
   args: ZodType<unknown>;
@@ -430,6 +432,7 @@ export const TOOLS: ToolDef[] = [
     },
   }),
   ...INTEGRATION_TOOLS,
+  ...COMPUTER_TOOLS,
 ];
 
 const byName = new Map(TOOLS.map((definition) => [definition.name, definition]));

@@ -158,6 +158,19 @@ export function Composer({
       } else if (command.name === "note") {
         const made = await apiRequest<{ note: { id: string } }>("/api/notes", { json: { title: text.split("\n")[0].slice(0, 80), content: text } });
         setNotice({ kind: "ok", text: "Note saved", href: `/notes/${made.note.id}`, linkLabel: "Open note" });
+      } else if (command.name === "do") {
+        const settings = await apiRequest<{ computerControl: boolean }>("/api/settings");
+        if (!settings.computerControl) {
+          setNotice({ kind: "error", text: "Turn on \"Let agents use this computer\" in Settings first. It stays off until you do.", href: "/settings", linkLabel: "Open settings" });
+          return;
+        }
+        const { agents } = await apiRequest<{ agents: { id: string; name: string; builtIn: boolean }[] }>("/api/agents");
+        const agent = agents.find((candidate) => candidate.builtIn && candidate.name === "Computer Assistant");
+        if (!agent) throw new ClientApiError("The Computer Assistant isn't available.", 404, "not_found");
+        const started = await apiRequest<{ run: { id: string } }>("/api/agent-runs", { json: { agentId: agent.id, objective: text.slice(0, 4000) } });
+        clear();
+        router.push(`/agents/runs/${started.run.id}`);
+        return;
       } else if (command.name === "remember") {
         await apiRequest("/api/memory", { json: { content: text.slice(0, 2000) } });
         setNotice({ kind: "ok", text: "Saved to memory. Future chats can use it.", href: "/knowledge", linkLabel: "Manage memory" });

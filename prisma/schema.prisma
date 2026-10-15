@@ -51,6 +51,8 @@ model AppSettings {
   searchKeyLast4   String?
   /// For SearXNG: the address of your instance.
   searchBaseUrl    String?
+  /// Whether agents may use this computer (run commands, read and write files). Always asks first. Off by default.
+  computerControl  Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ComputerCard } from "@/components/settings/computer-card";
 import { AppearanceCard } from "@/components/settings/appearance-card";
 import { OpenRouterSettings } from "@/components/settings/openrouter-settings";
 import { ShortcutsCard } from "@/components/settings/shortcuts-card";
@@ -26,6 +27,7 @@ export default function SettingsPage() {
         <SidebarCard />
         <ShortcutsCard />
         <SearchSettingsCard />
+        <ComputerCard />
         <SecurityCard />
         <Card className="space-y-2 lg:col-span-2">
           <h2 className="font-semibold">About this install</h2>

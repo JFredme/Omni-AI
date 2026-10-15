@@ -15,6 +15,26 @@ import { formatTokens } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { formatCost, RunStatusBadge, StepStatusBadge } from "./agent-parts";
 
+/** Plain-language description of an action on the user's computer, so approving it is an informed choice. Null for other tools. */
+export function describeComputerAction(tool: string | null, input: unknown): { title: string; detail: string } | null {
+  const args = (input ?? {}) as Record<string, unknown>;
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  switch (tool) {
+    case "run_command":
+      return { title: `Run this command${text(args.folder) ? ` in ${text(args.folder)}` : ""}:`, detail: text(args.command) };
+    case "write_file":
+      return { title: `Create or replace the file ${text(args.path)} with:`, detail: text(args.content).slice(0, 4_000) + (text(args.content).length > 4_000 ? "\n…" : "") };
+    case "read_file":
+      return { title: "Read this file:", detail: text(args.path) };
+    case "list_folder":
+      return { title: "List what is in this folder:", detail: text(args.path) };
+    case "open_item":
+      return { title: args.app ? "Open this app:" : "Open this:", detail: text(args.target) };
+    default:
+      return null;
+  }
+}
+
 export function RunView({ id }: { id: string }) {
   const [run, setRun] = useState<AgentRunDto | null>(null);
   const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null);
@@ -134,7 +154,17 @@ export function RunView({ id }: { id: string }) {
             </p>
           </div>
           {pending.thought ? <p className="text-sm">{pending.thought}</p> : null}
-          <pre className="overflow-x-auto rounded-xl border border-border bg-muted/60 p-3 font-mono text-[13px]">{JSON.stringify(pending.input, null, 2)}</pre>
+          {describeComputerAction(pending.tool, pending.input) ? (
+            <div className="space-y-2 rounded-xl border border-warning/50 bg-warning/10 p-3 text-sm">
+              <p className="font-medium">{describeComputerAction(pending.tool, pending.input)!.title}</p>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-background/70 p-2.5 font-mono text-[13px]">
+                {describeComputerAction(pending.tool, pending.input)!.detail}
+              </pre>
+              <p className="text-xs text-muted-foreground">This happens on your computer, outside Omni. Only approve it if it is what you wanted.</p>
+            </div>
+          ) : (
+            <pre className="overflow-x-auto rounded-xl border border-border bg-muted/60 p-3 font-mono text-[13px]">{JSON.stringify(pending.input, null, 2)}</pre>
+          )}
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => decide(pending, "reject")} disabled={busy}>
               <X className="size-4" aria-hidden />

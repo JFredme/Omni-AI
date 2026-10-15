@@ -103,8 +103,8 @@ async function runLoop(runId: string): Promise<void> {
   }
 }
 
-function allowedTools(agent: Agent, depth: number): ToolDef[] {
-  return TOOLS.filter((tool) => agent.tools.includes(tool.name) && (tool.name !== "delegate" || depth < MAX_DEPTH));
+function allowedTools(agent: Agent, depth: number, computerAllowed: boolean): ToolDef[] {
+  return TOOLS.filter((tool) => agent.tools.includes(tool.name) && (tool.name !== "delegate" || depth < MAX_DEPTH) && (tool.risk !== "computer" || computerAllowed));
 }
 
 async function recordStep(
@@ -247,7 +247,8 @@ async function loop(runId: string, controller: AbortController): Promise<void> {
       return;
     }
 
-    const tools = allowedTools(agent, run.depth);
+    const computerAllowed = (await prisma.appSettings.findUnique({ where: { id: 1 }, select: { computerControl: true } }))?.computerControl === true;
+    const tools = allowedTools(agent, run.depth, computerAllowed);
     const delegates = tools.some((tool) => tool.name === "delegate")
       ? (await prisma.agent.findMany({ where: { NOT: { id: agent.id } }, select: { name: true }, orderBy: { name: "asc" } })).map((row) => row.name)
       : [];
@@ -305,7 +306,8 @@ async function loop(runId: string, controller: AbortController): Promise<void> {
       continue;
     }
 
-    const needsApproval = agent.approvalTools.includes(def.name);
+    // Anything that uses the computer always asks, whatever the agent's own settings say.
+    const needsApproval = agent.approvalTools.includes(def.name) || def.risk === "computer";
     if (needsApproval && run.depth > 0) {
       await recordStep(run, {
         ...base,

@@ -133,6 +133,35 @@ describe("agent engine (database + scripted model)", () => {
     expect((await listTasks()).map((task) => task.title)).toEqual(["Book flights"]);
   });
 
+  it("never uses the computer without approval, even for an agent set to run on its own, and not at all while the setting is off", async () => {
+    // Off: the tool isn't offered, so asking for it is an error and nothing runs.
+    script = [action("run_command", { command: "echo off" }), final("Could not.")];
+    const first = await agent({ tools: ["run_command"], approvalTools: [] });
+    const blocked = await runToEnd(first.id, "Say hi in a terminal");
+    expect(blocked.steps[0]).toMatchObject({ tool: "run_command", status: "error" });
+    expect(blocked.steps[0].output).toContain("not an available tool");
+
+    // On: it still pauses for approval, because computer tools always ask.
+    await updateSettings({ computerControl: true });
+    script = [action("run_command", { command: "echo approved-run" }), final("Done.")];
+    const second = await agent({ tools: ["run_command"], approvalTools: [] });
+    const run = await startRun({ agentId: second.id, objective: "Say hi in a terminal" });
+    launchRun(run.id);
+    await idle();
+    const paused = await getRun(run.id);
+    expect(paused.status).toBe("awaiting_approval");
+    expect(paused.steps[0]).toMatchObject({ status: "pending_approval", tool: "run_command", input: { command: "echo approved-run" } });
+    expect(paused.steps[0].output ?? "").not.toContain("approved-run\n");
+
+    await decideStep(run.id, paused.steps[0].id, "approve");
+    await idle();
+    const done = await getRun(run.id);
+    expect(done.status).toBe("completed");
+    expect(done.steps[0].status).toBe("ok");
+    expect(done.steps[0].output).toContain("approved-run");
+    await updateSettings({ computerControl: false });
+  });
+
   it("does not act when the user declines, and tells the model so", async () => {
     script = [action("create_task", { title: "Nope" }), final("Understood, I didn't create it.")];
     const created = await agent({ tools: ["create_task"], approvalTools: ["create_task"] });

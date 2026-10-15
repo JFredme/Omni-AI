@@ -1,4 +1,10 @@
-# OMNI AI 0.3.3
+# OMNI AI 0.4.0: live web, agentic, smoother replies
+
+- **Live web data.** Chat can search the web (OpenRouter's built-in search, no extra key). The globe in the message box switches between Auto, Web on and Web off. Web pages used are shown under the reply.
+- **Gemini-style replies.** Words ease in as they arrive, with a shimmer while the model thinks.
+- **Computer control (off by default).** In **Settings → Let agents use this computer**, the new **Computer Assistant** agent can run commands, read and write files and open apps for you. Type `/do` and your goal in the chat. **Every action asks for your approval first**, can only be approved on the computer itself (not from a phone), and dangerous commands and secret files are blocked.
+
+# 0.3.3
 
 **Fix:** on some phones the page drew underneath the status bar and the bottom bar. It now stays between them.
 

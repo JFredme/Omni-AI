@@ -14,7 +14,7 @@ import type { CatalogModel } from "@/lib/openrouter/models";
 interface ToolInfo {
   name: string;
   description: string;
-  risk: "read" | "write";
+  risk: "read" | "write" | "computer";
 }
 
 /** Creates or edits a custom agent. With `source` set to a built-in agent, it creates an editable copy. */
@@ -59,7 +59,7 @@ export function AgentDialog({
       setApproval((prev) => prev.filter((value) => value !== toolName));
     } else {
       setTools((prev) => [...prev, toolName]);
-      if (risk === "write") setApproval((prev) => [...prev, toolName]);
+      if (risk === "write" || risk === "computer") setApproval((prev) => [...prev, toolName]);
     }
   }
 
@@ -158,10 +158,11 @@ export function AgentDialog({
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                       <code className="font-mono text-[13px]">{tool.name}</code>
-                      <Badge className={tool.risk === "write" ? "bg-warning/25 text-foreground" : undefined}>{tool.risk === "write" ? "Changes data" : "Read only"}</Badge>
+                      <Badge className={tool.risk === "read" ? undefined : "bg-warning/25 text-foreground"}>{tool.risk === "write" ? "Changes data" : tool.risk === "computer" ? "Uses your computer" : "Read only"}</Badge>
                     </p>
                     <p className="text-xs text-muted-foreground">{tool.description}</p>
                   </div>
+                  {enabled && tool.risk === "computer" ? <span className="text-xs text-muted-foreground">Always asks first</span> : null}
                   {enabled && tool.risk === "write" ? (
                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <input

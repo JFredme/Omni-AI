@@ -40,7 +40,7 @@ describe("tool registry and built-in agents", () => {
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
     for (const tool of toolCatalog()) {
       expect(tool.usage.length).toBeGreaterThan(1);
-      expect(["read", "write"]).toContain(tool.risk);
+      expect(["read", "write", "computer"]).toContain(tool.risk);
     }
     expect(getTool("nope")).toBeUndefined();
   });

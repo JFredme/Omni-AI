@@ -125,7 +125,9 @@ The mock OpenRouter server in `e2e/mock-openrouter.mjs` follows the documented r
 - **Summarize.** More → Summarize this chat asks the model for a summary, key points, and action items. Saving it as a note, or adding action items as tasks, happens only when you click.
 - **Compare models.** More → Compare models sends one prompt to two to four models at once and shows their answers side by side with time, tokens, and cost. These runs count toward usage but aren't saved as chats.
 - **Model capabilities** (images, tools, reasoning, context size) come from OpenRouter's catalog and are shown in the model picker and on the compare page.
-- Not built: calling tools from inside a chat. Agents are where tools live.
+- **Live web data.** The globe in the message box controls web search: **Auto** (default) looks things up when a question needs fresh information (news, weather, prices, "latest", links you paste), **Web on** always searches, **Web off** never does. It uses OpenRouter's built-in web search, so there is no extra key and no second AI service; searches add a small cost on your OpenRouter bill. The pages used are listed under the reply as "From the web".
+- **Typing.** Replies flow in word by word with a soft fade, with a shimmer while the model is thinking (and "Searching the web…" when it is looking things up). Reduced-motion settings turn the animation off.
+- **Doing things.** Type `/do` and what you want to hand it to the Computer Assistant agent (see below). Other tools still live in agents, not inside a chat reply.
 
 ## Tasks, notes, and projects
 
@@ -149,6 +151,15 @@ The assistant uses the same OpenRouter key, default model, spending limit, and u
 **Nothing is saved until you confirm.** Each action first shows a review dialog; every item has a checkbox, and only ticked items are sent to `POST /api/ai/apply` (the summary is inserted into the note after you edit or accept it). Discarding saves nothing. Model output is treated as untrusted: ids must match real records, priorities, dates, and tags are validated, duplicates and no-op changes are dropped, and applying the same plan twice does not create duplicate tasks. Note, task, and project text is passed to the model inside `<data>` blocks with instructions to treat it as data.
 
 The model is asked for JSON and the reply is validated; if it isn't usable you see a specific error and can retry (the attempt still appears in usage). Each AI request is recorded in usage like a chat reply.
+
+## Letting agents use your computer
+
+Off by default. In **Settings → Let agents use this computer** you can allow the **Computer Assistant** agent (and any agent you give the tools to) to run shell commands, list folders, read and write text files, and open apps, files and web pages on the computer OMNI runs on. This is what makes `/do` agentic.
+
+- **Every action asks first.** The run pauses and shows the exact command or file change in plain words; nothing happens until you press Approve. There is no automatic mode, and an agent's own settings can't turn the questions off.
+- **Only from this computer.** The switch, and approving an action, only work from the computer itself (`localhost`), not from a phone, another device on your Wi-Fi, or over the internet.
+- **Hard limits** even after approval: no administrator commands (`sudo`), no erasing disks or deleting whole folder trees, no shutdown, no download-and-run scripts, and no reading `.ssh`, `.aws`, `.env`, keychains, or OMNI's own data folder. Commands run with OMNI's own secrets removed from their environment, time out after 60 seconds, and their output is cut to 8,000 characters.
+- **Be careful anyway.** Web pages, files and command output the agent reads could contain text trying to trick it. Read each request before approving.
 
 ## Agents
 
@@ -255,7 +266,7 @@ Open **Analytics** for 7, 30, or 90 days of your own data: tasks created and fin
 
 ## Apps (Mac, Windows, Android)
 
-Current version: **0.3.3** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; see [INSTALL.md](INSTALL.md); each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
+Current version: **0.4.0** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; see [INSTALL.md](INSTALL.md); each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
 
 The home screen is the chat. Other sections live under **Workspace** in the sidebar or via slash commands (type `/`); the old dashboard is at `/today`.
 
