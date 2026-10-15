@@ -19,6 +19,7 @@ import { leaveChatDraft } from "@/lib/chat/draft";
 import { formatTokens, formatUsd } from "@/lib/format";
 import type { ConversationDetail, ConversationSummary, MessageDto, TurnEvent } from "@/lib/chat/types";
 import { useModifierLabel } from "@/lib/client-hooks";
+import { shouldSearchWeb, WEB_MODES, type WebMode } from "@/lib/chat/web";
 import { cn } from "@/lib/utils";
 
 const KNOWLEDGE_KEY = "omni.chat.useKnowledge";
@@ -47,6 +48,33 @@ function useKnowledgeToggle(): [boolean, (value: boolean) => void] {
   ];
 }
 
+const WEB_KEY = "omni.chat.web";
+
+/** Web search mode: automatic by default. Remembered in this browser. */
+function useWebMode(): [WebMode, (value: WebMode) => void] {
+  const [value, setValue] = useState<WebMode>("auto");
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(WEB_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable on the client
+      if (saved && (WEB_MODES as readonly string[]).includes(saved)) setValue(saved as WebMode);
+    } catch {
+      // Storage can be blocked; the default stays.
+    }
+  }, []);
+  return [
+    value,
+    (next) => {
+      setValue(next);
+      try {
+        window.localStorage.setItem(WEB_KEY, next);
+      } catch {
+        // Not remembered, still applied.
+      }
+    },
+  ];
+}
+
 type ConversationResponse = { conversation: ConversationDetail };
 
 export function ChatWorkspace({ initialId }: { initialId: string | null }) {
@@ -63,6 +91,8 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   const [systemDraft, setSystemDraft] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const [useKnowledge, setUseKnowledge] = useKnowledgeToggle();
+  const [webMode, setWebMode] = useWebMode();
+  const searchingRef = useRef(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   // Set while an edited message is being sent, so the screen shows the new version in place of the old.
   const replacingRef = useRef<string | null>(null);
@@ -130,7 +160,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   function handleTurnEvent(conversationId: string, event: TurnEvent) {
     switch (event.type) {
       case "start":
-        setLive({ text: "", modelId: event.modelId, citations: event.citations ?? [] });
+        setLive({ text: "", modelId: event.modelId, citations: event.citations ?? [], searching: searchingRef.current });
         if (event.userMessage) {
           const userMessage: MessageDto = event.userMessage;
           const replacing = replacingRef.current;
@@ -144,6 +174,9 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
       case "delta":
         setLive((prev) => (prev ? { ...prev, text: prev.text + event.text } : prev));
         break;
+      case "web":
+        setLive((prev) => (prev ? { ...prev, citations: event.citations } : prev));
+        break;
       default:
         break;
     }
@@ -151,6 +184,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
 
   async function runTurn(kind: "send" | "regenerate", content?: string, options: { attachmentIds?: string[]; replaceMessageId?: string } = {}) {
     replacingRef.current = options.replaceMessageId ?? null;
+    searchingRef.current = shouldSearchWeb(content ?? "", webMode);
     const controller = new AbortController();
     abortRef.current = controller;
     setStreaming(true);
@@ -183,7 +217,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
       }
 
       const path = `/api/conversations/${conversationId}/${kind === "send" ? "messages" : "regenerate"}`;
-      await streamTurn(path, kind === "send" ? { content, useKnowledge, attachmentIds: options.attachmentIds, replaceMessageId: options.replaceMessageId } : { useKnowledge }, {
+      await streamTurn(path, kind === "send" ? { content, useKnowledge, web: webMode, attachmentIds: options.attachmentIds, replaceMessageId: options.replaceMessageId } : { useKnowledge, web: webMode }, {
         signal: controller.signal,
         onEvent: (event) => handleTurnEvent(conversationId as string, event),
       });
@@ -460,6 +494,8 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
               void runTurn("send", content, { attachmentIds });
             }}
             onNewChat={startNewChat}
+            web={webMode}
+            onWebChange={setWebMode}
             canReadImages={selectedModel ? selectedModel.capabilities.imageInput : true}
             modelName={selectedModel?.name}
             onStop={() => abortRef.current?.abort()}

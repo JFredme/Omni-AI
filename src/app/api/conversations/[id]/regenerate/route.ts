@@ -6,6 +6,7 @@ import { turnStreamResponse } from "@/lib/chat/stream";
 const regenerateSchema = z.object({
   modelId: z.string().trim().min(1).max(200).optional(),
   useKnowledge: z.boolean().optional(),
+  web: z.enum(["auto", "on", "off"]).optional(),
   messageId: z.string().max(60).optional(),
 });
 

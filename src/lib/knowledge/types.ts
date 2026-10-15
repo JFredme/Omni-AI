@@ -71,7 +71,9 @@ export interface MemoryDto {
 /** What was retrieved for a reply. Stored with the message so the sources stay visible later. */
 export interface Citation {
   n: number;
-  kind: "source" | "memory";
+  kind: "source" | "memory" | "web";
+  /** For a web page: where it is. */
+  url?: string;
   documentId: string | null;
   name: string;
   page: number | null;

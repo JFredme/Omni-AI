@@ -20,8 +20,15 @@ export interface UsageInfo {
   cost: number | null;
 }
 
+export interface WebSource {
+  url: string;
+  title: string;
+  snippet: string;
+}
+
 export type StreamEvent =
   | { type: "delta"; text: string }
+  | { type: "web"; sources: WebSource[] }
   | { type: "usage"; usage: UsageInfo }
   | { type: "finish"; reason: string | null };
 
@@ -31,6 +38,25 @@ export interface ChatRequestBody {
   model: string;
   messages: { role: "system" | "user" | "assistant"; content: string | ContentPart[] }[];
   temperature?: number;
+  /** OpenRouter plugins. `{ id: "web" }` lets the model search the live web (answers then cite their sources). */
+  plugins?: { id: string; max_results?: number }[];
+}
+
+/** Pulls the web pages OpenRouter attached to a reply (`annotations` of type `url_citation`). */
+export function webSourcesFrom(annotations: unknown): WebSource[] {
+  if (!Array.isArray(annotations)) return [];
+  const out: WebSource[] = [];
+  for (const item of annotations) {
+    const note = item as { type?: unknown; url_citation?: { url?: unknown; title?: unknown; content?: unknown } };
+    const cite = note?.type === "url_citation" ? note.url_citation : null;
+    if (!cite || typeof cite.url !== "string" || !/^https?:\/\//i.test(cite.url)) continue;
+    out.push({
+      url: cite.url,
+      title: typeof cite.title === "string" && cite.title.trim() ? cite.title.trim().slice(0, 200) : new URL(cite.url).hostname,
+      snippet: typeof cite.content === "string" ? cite.content.replace(/\s+/g, " ").trim().slice(0, 400) : "",
+    });
+  }
+  return out;
 }
 
 export interface KeyInfo {
@@ -275,10 +301,12 @@ export async function* streamChatCompletion(params: {
         if (choice.error && typeof choice.error === "object") {
           throw errorFromStreamPayload(choice.error as Record<string, unknown>);
         }
-        const delta = choice.delta as { content?: unknown } | undefined;
+        const delta = choice.delta as { content?: unknown; annotations?: unknown } | undefined;
         if (typeof delta?.content === "string" && delta.content.length > 0) {
           yield { type: "delta", text: delta.content };
         }
+        const web = webSourcesFrom(delta?.annotations);
+        if (web.length > 0) yield { type: "web", sources: web };
         if (typeof choice.finish_reason === "string") {
           finished = true;
           yield { type: "finish", reason: choice.finish_reason };

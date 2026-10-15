@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BookMarked, BookOpen } from "lucide-react";
+import { BookMarked, BookOpen, Globe } from "lucide-react";
 import type { Citation } from "@/lib/knowledge/types";
 import { cn } from "@/lib/utils";
 
@@ -17,11 +17,20 @@ export function citedNumbers(content: string, citations: Citation[]): Set<number
   return cited;
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 export function Sources({ citations, content }: { citations: Citation[]; content: string }) {
   const [open, setOpen] = useState<number | null>(null);
   const sources = citations.filter((c) => c.kind === "source");
   const memories = citations.filter((c) => c.kind === "memory");
-  if (sources.length === 0 && memories.length === 0) return null;
+  const pages = citations.filter((c) => c.kind === "web" && c.url);
+  if (sources.length === 0 && memories.length === 0 && pages.length === 0) return null;
   const cited = citedNumbers(content, citations);
   const active = citations.find((c) => c.n === open) ?? null;
 
@@ -65,6 +74,27 @@ export function Sources({ citations, content }: { citations: Citation[]; content
               <BookOpen className="size-3" aria-hidden /> Open document
             </Link>
           ) : null}
+        </div>
+      ) : null}
+
+      {pages.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="eyebrow mr-1 inline-flex items-center gap-1">
+            <Globe className="size-3" aria-hidden /> From the web
+          </span>
+          {pages.map((page) => (
+            <a
+              key={page.n}
+              href={page.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={page.snippet || page.name}
+              className="inline-flex max-w-64 items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+            >
+              <span className="truncate">{page.name}</span>
+              <span className="shrink-0 text-muted-foreground/70">{hostOf(page.url ?? "")}</span>
+            </a>
+          ))}
         </div>
       ) : null}
 

@@ -68,6 +68,7 @@ export interface ConversationDetail extends ConversationSummary {
 export type TurnEvent =
   | { type: "start"; userMessage: MessageDto | null; assistantMessageId: string; modelId: string; citations: Citation[] }
   | { type: "delta"; text: string }
+  | { type: "web"; citations: Citation[] }
   | { type: "done"; message: MessageDto }
   | { type: "stopped"; message: MessageDto }
   | { type: "error"; code: string; message: string; messageId: string };

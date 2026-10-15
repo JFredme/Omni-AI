@@ -217,3 +217,17 @@ describe("OpenRouter client", () => {
     });
   });
 });
+
+describe("webSourcesFrom", () => {
+  it("keeps web pages from url_citation annotations and ignores anything else", async () => {
+    const { webSourcesFrom } = await import("./client");
+    expect(
+      webSourcesFrom([
+        { type: "url_citation", url_citation: { url: "https://example.com/a", title: "Example", content: "  some   text " } },
+        { type: "url_citation", url_citation: { url: "javascript:alert(1)", title: "bad" } },
+        { type: "file", file: {} },
+      ]),
+    ).toEqual([{ url: "https://example.com/a", title: "Example", snippet: "some text" }]);
+    expect(webSourcesFrom(undefined)).toEqual([]);
+  });
+});

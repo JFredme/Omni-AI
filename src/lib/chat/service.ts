@@ -1,7 +1,8 @@
 import { ApiError } from "@/lib/api-error";
 import { prisma } from "@/lib/db";
 import { findCatalogModel } from "@/lib/openrouter/catalog";
-import { streamChatCompletion, type UsageInfo } from "@/lib/openrouter/client";
+import { streamChatCompletion, type UsageInfo, type WebSource } from "@/lib/openrouter/client";
+import { shouldSearchWeb, webCitations, type WebMode } from "@/lib/chat/web";
 import { OpenRouterError, userMessageFor } from "@/lib/openrouter/errors";
 import { estimateCostUsd } from "@/lib/openrouter/models";
 import { requireApiKey } from "@/lib/settings";
@@ -202,6 +203,8 @@ export interface TurnPlan {
   assistantMessageId: string;
   userMessage: MessageDto | null;
   citations: Citation[];
+  /** True when this reply may look at the live web. */
+  web: boolean;
 }
 
 async function resolveModelId(conversationModelId: string | null, requested: string | undefined): Promise<string> {
@@ -262,6 +265,7 @@ export async function prepareSend(
     content: string;
     modelId?: string;
     useKnowledge?: boolean;
+    web?: WebMode;
     attachmentIds?: string[];
     /** Edit: send this as a new version of the given user message, keeping the original as another branch. */
     replaceMessageId?: string;
@@ -344,6 +348,7 @@ export async function prepareSend(
       { index: Math.max(0, siblings.findIndex((s) => s.id === user.id)), count: Math.max(1, siblings.length), ids: siblings.map((s) => s.id) },
     ),
     citations: context.citations,
+    web: shouldSearchWeb(text, input.web ?? "auto"),
   };
 }
 
@@ -353,7 +358,7 @@ export async function prepareSend(
  */
 export async function prepareRegenerate(
   conversationId: string,
-  input: { modelId?: string; useKnowledge?: boolean; messageId?: string },
+  input: { modelId?: string; useKnowledge?: boolean; web?: WebMode; messageId?: string },
   signal?: AbortSignal,
 ): Promise<TurnPlan> {
   const conversation = await ensureConversation(conversationId);
@@ -405,6 +410,7 @@ export async function prepareRegenerate(
     assistantMessageId: assistant.id,
     userMessage: null,
     citations: context.citations,
+    web: shouldSearchWeb(replyToRow.content, input.web ?? "auto"),
   };
 }
 
@@ -448,12 +454,13 @@ async function finalizeTurn(
     costUsd: number | null;
     costSource: CostSource;
     usageStatus: "complete" | "stopped" | "error";
+    citations?: Citation[];
   },
 ): Promise<MessageDto> {
   const [message] = await prisma.$transaction([
     prisma.message.update({
       where: { id: plan.assistantMessageId },
-      data: { content: result.content, status: result.status, error: result.error },
+      data: { content: result.content, status: result.status, error: result.error, ...(result.citations ? { citations: result.citations as unknown as object } : {}) },
       include: messageInclude,
     }),
     prisma.usageRecord.create({
@@ -496,11 +503,13 @@ export async function* runTurn(plan: TurnPlan, signal: AbortSignal): AsyncGenera
 
   let text = "";
   let usage: UsageInfo | null = null;
+  const webSources: WebSource[] = [];
+  const allCitations = () => [...plan.citations, ...webCitations(webSources, plan.citations)];
 
   try {
     for await (const event of streamChatCompletion({
       apiKey: plan.apiKey,
-      body: { model: plan.modelId, messages: plan.requestMessages },
+      body: { model: plan.modelId, messages: plan.requestMessages, ...(plan.web ? { plugins: [{ id: "web", max_results: 5 }] } : {}) },
       signal,
     })) {
       if (event.type === "delta") {
@@ -508,6 +517,9 @@ export async function* runTurn(plan: TurnPlan, signal: AbortSignal): AsyncGenera
         yield { type: "delta", text: event.text };
       } else if (event.type === "usage") {
         usage = event.usage;
+      } else if (event.type === "web") {
+        webSources.push(...event.sources);
+        yield { type: "web", citations: allCitations() };
       }
     }
 
@@ -520,6 +532,7 @@ export async function* runTurn(plan: TurnPlan, signal: AbortSignal): AsyncGenera
       costUsd: cost.costUsd,
       costSource: cost.source,
       usageStatus: "complete",
+      ...(webSources.length ? { citations: allCitations() } : {}),
     });
     yield { type: "done", message };
   } catch (error) {
@@ -533,6 +546,7 @@ export async function* runTurn(plan: TurnPlan, signal: AbortSignal): AsyncGenera
         costUsd: cost.costUsd,
         costSource: cost.source,
         usageStatus: "stopped",
+        ...(webSources.length ? { citations: allCitations() } : {}),
       });
       yield { type: "stopped", message };
       return;

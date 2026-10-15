@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { AlertCircle, ArrowUp, Check, FileText, Image as ImageIcon, Loader2, Paperclip, Slash, Square, X } from "lucide-react";
+import { AlertCircle, ArrowUp, Check, FileText, Globe, Image as ImageIcon, Loader2, Paperclip, Slash, Square, X } from "lucide-react";
 import { SlashMenu } from "@/components/chat/slash-menu";
 import { apiRequest, ClientApiError } from "@/lib/client/api";
 import { CHAT_DRAFT_EVENT, CHAT_DRAFT_KEY } from "@/lib/chat/draft";
+import type { WebMode } from "@/lib/chat/web";
 import { matchSlash, parseSlash, SLASH_COMMANDS, type SlashCommand } from "@/lib/chat/slash";
 import type { AttachmentDto } from "@/lib/chat/types";
 import { useModifierLabel } from "@/lib/client-hooks";
@@ -26,6 +27,8 @@ export function Composer({
   onSend,
   onStop,
   onNewChat,
+  web,
+  onWebChange,
   streaming,
   disabled,
   disabledReason,
@@ -39,6 +42,9 @@ export function Composer({
   streaming: boolean;
   disabled: boolean;
   disabledReason?: string;
+  /** Whether replies may search the live web: automatically, always, or never. */
+  web?: WebMode;
+  onWebChange?: (mode: WebMode) => void;
   placeholder?: string;
   /** False when the chosen model can't take images; image files are then refused with a reason. */
   canReadImages?: boolean;
@@ -358,6 +364,22 @@ export function Composer({
             >
               <Slash className="size-[17px]" aria-hidden />
             </button>
+            {web && onWebChange ? (
+              <button
+                type="button"
+                onClick={() => onWebChange(web === "auto" ? "on" : web === "on" ? "off" : "auto")}
+                aria-label={`Web search: ${web === "auto" ? "automatic" : web}`}
+                title={web === "auto" ? "Web search: automatic. Omni looks things up when a question needs fresh information. Click to always search." : web === "on" ? "Web search: always on. Click to turn it off." : "Web search: off. Click for automatic."}
+                className={cn(
+                  "inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors hover:bg-accent",
+                  web === "off" ? "text-muted-foreground" : "text-primary",
+                  web === "on" && "bg-primary/10",
+                )}
+              >
+                <Globe className="size-[17px]" aria-hidden />
+                <span>{web === "auto" ? "Auto" : web === "on" ? "Web on" : "Web off"}</span>
+              </button>
+            ) : null}
             <span className="ml-auto hidden pr-2 text-[11.5px] text-muted-foreground/80 sm:inline">
               {streaming ? "Esc to stop" : `Enter to send · Shift+Enter for a new line`}
             </span>

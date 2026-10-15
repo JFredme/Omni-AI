@@ -14,6 +14,8 @@ export interface LiveReply {
   text: string;
   modelId: string | null;
   citations: Citation[];
+  /** This reply is looking things up on the web. */
+  searching?: boolean;
 }
 
 export function usageSummary(message: MessageDto): string {
