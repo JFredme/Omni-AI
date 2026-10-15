@@ -1,20 +1,51 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useLoginRequired } from "@/lib/client/login-required";
+import { localDateKey } from "@/lib/dates";
 import { navItems, navSections, isActivePath, type NavItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+
+/** What needs attention on the task list: overdue first, otherwise what's due today. Refreshed when you return to the tab. */
+function useTaskBadge(): { count: number; overdue: boolean } | null {
+  const pathname = usePathname();
+  const [badge, setBadge] = useState<{ count: number; overdue: boolean } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      fetch(`/api/dashboard?today=${localDateKey()}&tz=${encodeURIComponent(zone)}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data: { dashboard?: { counts: { overdue: number; dueToday: number } } } | null) => {
+          if (cancelled || !data?.dashboard) return;
+          const { overdue, dueToday } = data.dashboard.counts;
+          setBadge(overdue > 0 ? { count: overdue, overdue: true } : dueToday > 0 ? { count: dueToday, overdue: false } : null);
+        })
+        .catch(() => undefined);
+    };
+    load();
+    window.addEventListener("focus", load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", load);
+    };
+  }, [pathname]);
+  return badge;
+}
 
 function NavLink({
   item,
   collapsed,
   onNavigate,
+  badge,
 }: {
   item: NavItem;
   collapsed: boolean;
   onNavigate?: () => void;
+  badge?: { count: number; overdue: boolean } | null;
 }) {
   const pathname = usePathname();
   const active = isActivePath(pathname, item.href);
@@ -42,6 +73,14 @@ function NavLink({
           <span className="truncate">{item.label}</span>
           {item.status === "planned" ? (
             <span className="eyebrow ml-auto !text-[10px]">Soon</span>
+          ) : null}
+          {badge ? (
+            <span
+              className={cn("num ml-auto min-w-5 rounded-full px-1.5 text-center text-[11px] font-semibold leading-5", badge.overdue ? "bg-destructive/12 text-destructive" : "bg-primary/10 text-primary")}
+              title={badge.overdue ? `${badge.count} overdue` : `${badge.count} due today`}
+            >
+              {badge.count}
+            </span>
           ) : null}
         </>
       )}
@@ -77,6 +116,7 @@ export function NavContent({
 }) {
   const settings = navItems.find((item) => item.id === "settings");
   const loginRequired = useLoginRequired();
+  const taskBadge = useTaskBadge();
 
   return (
     <>
@@ -101,7 +141,7 @@ export function NavContent({
             <ul className="space-y-0.5">
               {section.items.map((item) => (
                 <li key={item.id}>
-                  <NavLink item={item} collapsed={collapsed} onNavigate={onNavigate} />
+                  <NavLink item={item} collapsed={collapsed} onNavigate={onNavigate} badge={item.id === "tasks" ? taskBadge : null} />
                 </li>
               ))}
             </ul>

@@ -19,16 +19,16 @@ export function TaskRow({
 }) {
   const done = task.status === "done";
   return (
-    <li className="group flex items-start gap-3 px-2 py-3 transition-colors hover:bg-accent/40">
+    <li className={cn("group flex items-start gap-3 px-2 py-3 transition-[background-color,opacity] duration-200 hover:bg-accent/40", done && "opacity-60")}>
       <input
         type="checkbox"
         checked={done}
         onChange={() => onToggle(task)}
         aria-label={done ? `Mark "${task.title}" as not done` : `Mark "${task.title}" as done`}
-        className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+        className="mt-1"
       />
       <button type="button" onClick={() => onOpen(task)} className="min-w-0 flex-1 space-y-1 rounded-md text-left">
-        <span className={cn("block break-words text-sm font-medium", done && "text-muted-foreground line-through")}>{task.title}</span>
+        <span className={cn("block break-words text-sm font-medium transition-colors duration-200", done && "text-muted-foreground line-through decoration-muted-foreground/50")}>{task.title}</span>
         <TaskMeta task={task} today={today} showProject={showProject} />
       </button>
     </li>

@@ -23,9 +23,11 @@ export function ErrorBanner({ message, onRetry, onDismiss, className }: { messag
 
 export function EmptyState({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description?: string; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
-      <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-        <Icon className="size-5" aria-hidden />
+    <div className="animate-rise flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+      <span className="relative flex size-14 items-center justify-center" aria-hidden>
+        <span className="absolute inset-0 rounded-full border border-border" />
+        <span className="absolute inset-2 rounded-full bg-accent" />
+        <Icon className="relative size-5 text-accent-foreground" />
       </span>
       <div className="space-y-1">
         <p className="font-medium">{title}</p>
@@ -49,7 +51,7 @@ export function SkeletonRows({ count = 4, className }: { count?: number; classNa
   return (
     <div className={cn("space-y-2", className)} role="status" aria-label="Loading">
       {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="h-14 animate-pulse rounded-xl bg-muted" />
+        <div key={index} className="skeleton h-14 rounded-xl" style={{ animationDelay: `${index * 120}ms` }} />
       ))}
     </div>
   );

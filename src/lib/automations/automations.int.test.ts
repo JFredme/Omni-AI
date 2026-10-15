@@ -8,6 +8,7 @@ import { assertTestDatabase } from "@/test/db-guard";
 import { automationsIdle, MAX_RUNS_PER_HOUR, recoverInterruptedRuns, runWorkflow, tick } from "./engine";
 import { createWorkflowSchema, updateWorkflowSchema } from "./schemas";
 import { createWorkflow, findByWebhookToken, getRun, listRuns, rotateWebhookToken, updateWorkflow } from "./service";
+import { localDateKey } from "@/lib/dates";
 
 const fetchMock = vi.fn<typeof fetch>();
 let aiReply = "A friendly briefing.";
@@ -61,7 +62,7 @@ afterEach(async () => {
 
 describe("running automations (database)", () => {
   it("runs steps in order, passing each result to the next, and records everything", async () => {
-    await createTask({ title: "Pay rent", priority: "high", dueDate: new Date().toISOString().slice(0, 10) });
+    await createTask({ title: "Pay rent", priority: "high", dueDate: localDateKey() }); // the app's "today" is the local date, which isn't the UTC date for part of every day
     const { id } = await wf({
       steps: [step({ type: "fetch_tasks", filter: "due_today" }), step({ type: "ai_prompt", prompt: "Summarize:\n{{steps.1.output}}", system: "" }), note("Briefing {{today}}", "{{steps.2.output}}")],
     });

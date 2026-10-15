@@ -211,12 +211,12 @@ export function TasksWorkspace() {
       </form>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-48 flex-1">
+        <div className="relative min-w-44 max-w-64 flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks" aria-label="Search tasks" className="pl-8" />
         </div>
         {view === "list" ? (
-          <Select aria-label="Filter by status" value={filters.status ?? ""} onChange={(event) => setFilter("status", event.target.value as TaskStatus)} className="w-auto">
+          <Select aria-label="Filter by status" value={filters.status ?? ""} onChange={(event) => setFilter("status", event.target.value as TaskStatus)} className="w-auto !pl-2.5 !pr-7 text-[13px]">
             {STATUS_FILTERS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -224,7 +224,7 @@ export function TasksWorkspace() {
             ))}
           </Select>
         ) : null}
-        <Select aria-label="Filter by priority" value={filters.priority ?? ""} onChange={(event) => setFilter("priority", event.target.value as TaskFilters["priority"])} className="w-auto">
+        <Select aria-label="Filter by priority" value={filters.priority ?? ""} onChange={(event) => setFilter("priority", event.target.value as TaskFilters["priority"])} className="w-auto !pl-2.5 !pr-7 text-[13px]">
           <option value="">All priorities</option>
           {TASK_PRIORITIES.map((value) => (
             <option key={value} value={value}>
@@ -232,7 +232,7 @@ export function TasksWorkspace() {
             </option>
           ))}
         </Select>
-        <Select aria-label="Filter by project" value={filters.projectId ?? ""} onChange={(event) => setFilter("projectId", event.target.value)} className="w-auto max-w-44">
+        <Select aria-label="Filter by project" value={filters.projectId ?? ""} onChange={(event) => setFilter("projectId", event.target.value)} className="w-auto max-w-40 !pl-2.5 !pr-7 text-[13px]">
           <option value="">All projects</option>
           <option value="none">No project</option>
           {projects.map((project) => (
@@ -241,7 +241,7 @@ export function TasksWorkspace() {
             </option>
           ))}
         </Select>
-        <Select aria-label="Filter by due date" value={filters.due ?? ""} onChange={(event) => setFilter("due", event.target.value as DueFilter)} className="w-auto">
+        <Select aria-label="Filter by due date" value={filters.due ?? ""} onChange={(event) => setFilter("due", event.target.value as DueFilter)} className="w-auto !pl-2.5 !pr-7 text-[13px]">
           <option value="">Any due date</option>
           {DUE_FILTERS.map((value) => (
             <option key={value} value={value}>
@@ -250,7 +250,7 @@ export function TasksWorkspace() {
           ))}
         </Select>
         {tags.length > 0 ? (
-          <Select aria-label="Filter by tag" value={filters.tag ?? ""} onChange={(event) => setFilter("tag", event.target.value)} className="w-auto">
+          <Select aria-label="Filter by tag" value={filters.tag ?? ""} onChange={(event) => setFilter("tag", event.target.value)} className="w-auto !pl-2.5 !pr-7 text-[13px]">
             <option value="">All tags</option>
             {tags.map((item) => (
               <option key={item.tag} value={item.tag}>
@@ -260,7 +260,7 @@ export function TasksWorkspace() {
           </Select>
         ) : null}
         {view === "list" ? (
-          <Select aria-label="Sort tasks" value={sort} onChange={(event) => setFilter("sort", event.target.value as TaskSort)} className="w-auto">
+          <Select aria-label="Sort tasks" value={sort} onChange={(event) => setFilter("sort", event.target.value as TaskSort)} className="w-auto !pl-2.5 !pr-7 text-[13px]">
             {TASK_SORTS.map((value) => (
               <option key={value} value={value}>
                 {TASK_SORT_LABELS[value]}
