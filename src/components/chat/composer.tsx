@@ -387,9 +387,9 @@ export function Composer({
           </div>
         </div>
       </div>
-      <p className="px-3 pb-3 pt-2 text-center text-[11.5px] text-muted-foreground/80">
+      <p className="px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 text-center text-[11.5px] text-muted-foreground/80">
         {modelName ? <>Replying with {modelName}. </> : null}
-        Press {modifier}K to search everything.
+        <span className="pointer-coarse:hidden">Press {modifier}K to search everything.</span>
       </p>
     </div>
   );

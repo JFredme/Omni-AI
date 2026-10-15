@@ -1,4 +1,11 @@
-# OMNI AI 0.3.1
+# OMNI AI 0.3.2: a smoother phone experience
+
+- Pages now fit phone screens: nothing runs off the edge, buttons are easier to tap, and the keyboard no longer covers the message box.
+- No more accidental zooming or pull-down refresh.
+- The "Can't reach your server" screen now fits the screen and shows the address it tried.
+- Simpler wording on the API key card.
+
+# 0.3.1
 
 **Fix:** the Android app showed "Can't reach your server" when connecting to a computer's phone access, even though the connection worked. The computer's code page now loads normally. Update the Mac or Windows app to 0.3.1 (the Android app itself is unchanged).
 

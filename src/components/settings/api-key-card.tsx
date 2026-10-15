@@ -79,15 +79,15 @@ export function ApiKeyCard({
 
   return (
     <Card className="space-y-4 lg:col-span-2">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-60 space-y-1">
           <h2 className="flex items-center gap-2 font-semibold">
             <KeyRound className="size-4" aria-hidden />
             OpenRouter API key
           </h2>
           <p className="text-sm text-muted-foreground">
-            Get a key at openrouter.ai/keys. It is encrypted with your server&apos;s ENCRYPTION_KEY before it is saved,
-            and it is never sent to the browser after you enter it.
+            Get a key at openrouter.ai/keys and paste it below. It is saved encrypted, and it is never shown again
+            after you enter it.
           </p>
         </div>
         <StatusPill configured={apiKey.configured} source={apiKey.source} last4={apiKey.last4} />

@@ -1,6 +1,6 @@
 {
   "name": "omni-ai-desktop",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "OMNI AI desktop app: the server and its own database, in one window.",
   "author": "OMNI AI",

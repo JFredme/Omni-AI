@@ -8,7 +8,9 @@
   :root { --paper: #f6f2ea; --ink: #2b2a26; --muted: #6b675d; --green: #285846; }
   @media (prefers-color-scheme: dark) { :root { --paper: #1c1b18; --ink: #ece8dd; --muted: #a29d8f; --green: #7fc3a3; } }
   body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; display: grid; place-items: center; padding: 24px; }
-  main { max-width: 420px; }
+  * { box-sizing: border-box; }
+  main { width: 100%; max-width: 420px; }
+  .addr { font: 14px ui-monospace, monospace; color: var(--muted); word-break: break-all; }
   h1 { font: 500 30px/1.15 Georgia, serif; margin: 0 0 10px; }
   p { color: var(--muted); }
   a, button { display: block; width: 100%; margin-top: 12px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--green); background: transparent; color: var(--green); font: inherit; font-weight: 600; text-align: center; text-decoration: none; }
@@ -19,8 +21,10 @@
 <main>
   <h1>Can't reach your server</h1>
   <p>Check that the server is running, that this phone can reach its address, and that you are online.</p>
+  <p class="addr" id="addr"></p>
   <button class="primary" onclick="location.href='index.html'">Try again</button>
   <a href="index.html?change=1">Change server address</a>
 </main>
+<script>try { var a = localStorage.getItem("omni.server") || ""; if (a) document.getElementById("addr").textContent = "Trying: " + a; } catch (e) {}</script>
 </body>
 </html>

@@ -400,3 +400,56 @@ input[type="checkbox"]:active {
     animation: none;
   }
 }
+
+/* Phones and tablets (including the Android app): steadier, easier to tap, no accidental zoom or pull-to-refresh. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  overscroll-behavior: none;
+}
+button,
+a,
+[role="button"],
+summary,
+select,
+label {
+  touch-action: manipulation;
+}
+code,
+pre code {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  /* Grid and flex children may shrink below their content, so long keys and code never push a card off the screen. */
+  main [class*="grid"] > *,
+  main [class*="flex"] > * {
+    min-width: 0;
+  }
+  main .grid:not([class*="grid-cols"]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+}
+@media (pointer: coarse) {
+  /* 16px text stops phones zooming in when a field is focused. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  /* Comfortable finger targets for the small icon buttons. */
+  button:not([role="checkbox"]):not([role="switch"]):not([role="tab"]):not([role="menuitem"]):not([role="option"]),
+  [role="button"] {
+    min-height: 40px;
+  }
+  button:not([role="checkbox"]):not([role="switch"]):not([role="tab"]):not([role="menuitem"]):not([role="option"]):not(:has(> :not(svg))) {
+    min-width: 40px;
+  }
+}
