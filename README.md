@@ -255,7 +255,7 @@ Open **Analytics** for 7, 30, or 90 days of your own data: tasks created and fin
 
 ## Apps (Mac, Windows, Android)
 
-Current version: **0.2.0** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
+Current version: **0.2.0** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; see [INSTALL.md](INSTALL.md); each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
 
 The home screen is the chat. Other sections live under **Workspace** in the sidebar or via slash commands (type `/`); the old dashboard is at `/today`.
 
