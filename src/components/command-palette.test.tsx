@@ -36,7 +36,9 @@ describe("CommandPalette", () => {
   it("lists every page and the built-in actions", () => {
     renderPalette();
     const labels = options().map((option) => option.textContent);
-    expect(labels).toContain("AI Chat");
+    expect(labels).toContain("Chat");
+    expect(labels).toContain("Today");
+    expect(labels).toContain("New chat");
     expect(labels).toContain("Settings");
     expect(labels).toContain("Use dark theme");
     expect(labels).toContain("Toggle sidebar");
@@ -57,15 +59,28 @@ describe("CommandPalette", () => {
   it("'Ask AI' fills the chat box for you to send, and does not send", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState({}, "", "/tasks"); // somewhere other than the chat, so it has to open the chat
     const { user, onClose } = renderPalette();
     await user.type(screen.getByRole("combobox"), "what is due zzzz");
     await user.click(screen.getByRole("option", { name: /Ask AI/ }));
     expect(sessionStorage.getItem("omni.chatDraft")).toBe("what is due zzzz");
-    expect(pushMock).toHaveBeenCalledWith("/chat");
+    expect(pushMock).toHaveBeenCalledWith("/");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
     sessionStorage.clear();
     vi.unstubAllGlobals();
+    window.history.pushState({}, "", "/");
+  });
+
+  it("'Ask AI' stays put when you're already in the chat", async () => {
+    window.history.pushState({}, "", "/chat/abc");
+    const { user } = renderPalette();
+    await user.type(screen.getByRole("combobox"), "and another thing zzzz");
+    await user.click(screen.getByRole("option", { name: /Ask AI/ }));
+    expect(sessionStorage.getItem("omni.chatDraft")).toBe("and another thing zzzz");
+    expect(pushMock).not.toHaveBeenCalled();
+    sessionStorage.clear();
+    window.history.pushState({}, "", "/");
   });
 
   it("'Add task' creates the task, and stays open with the reason if that fails", async () => {

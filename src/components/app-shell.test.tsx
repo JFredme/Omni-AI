@@ -43,7 +43,8 @@ describe("AppShell", () => {
     renderShell();
     const link = within(sidebar()).getByRole("link", { name: /^Tasks/ });
     expect(link.getAttribute("aria-current")).toBe("page");
-    expect(screen.getByRole("link", { name: "Home" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("link", { name: "Today" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("link", { name: "Chat" }).getAttribute("aria-current")).toBeNull();
   });
 
   it("opens the command palette with Ctrl+K", async () => {

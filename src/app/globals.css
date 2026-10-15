@@ -324,3 +324,79 @@ input[type="checkbox"]:active {
     animation: none;
   }
 }
+
+/* ---------- chat ---------- */
+
+/* The blinking mark at the end of text that is still being written. */
+.caret {
+  display: inline-block;
+  width: 2.5px;
+  height: 1.05em;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: var(--primary);
+  vertical-align: text-bottom;
+  animation: caret-blink 1s steps(2, start) infinite;
+}
+
+@keyframes caret-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* The avatar breathes gently while a reply is on its way. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 30%, transparent);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 0%, transparent);
+  }
+}
+
+.animate-breathe {
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+/* The message box: a soft lift off the page, a little more when you're in it. */
+.composer-surface {
+  box-shadow:
+    0 1px 2px oklch(0.2 0.02 60 / 0.05),
+    0 12px 32px -16px oklch(0.2 0.02 60 / 0.16);
+}
+
+.composer-surface:focus-within {
+  box-shadow:
+    0 1px 2px oklch(0.2 0.02 60 / 0.06),
+    0 16px 40px -16px oklch(0.2 0.02 60 / 0.22),
+    0 0 0 4px color-mix(in oklab, var(--primary) 9%, transparent);
+}
+
+.dark .composer-surface {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.4),
+    0 12px 32px -16px oklch(0 0 0 / 0.6);
+}
+
+.dark .composer-surface:focus-within {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.4),
+    0 16px 40px -16px oklch(0 0 0 / 0.7),
+    0 0 0 4px color-mix(in oklab, var(--primary) 14%, transparent);
+}
+
+/* The fade where text scrolls out of sight behind the message box. */
+.chat-fade-bottom {
+  background: linear-gradient(to top, var(--background) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe,
+  .caret {
+    animation: none;
+  }
+}

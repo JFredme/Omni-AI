@@ -35,7 +35,7 @@ async function check(name, fn) {
 const setModel = (id) => api("/api/settings", { method: "PATCH", body: JSON.stringify({ defaultModelId: id }) });
 async function newChatAndSend(text) {
   await page.goto(`${baseUrl}/chat`);
-  const box = page.getByPlaceholder(/Message/);
+  const box = page.getByRole("textbox", { name: "Message" });
   await box.waitFor();
   await box.fill(text);
   await box.press("Enter");
@@ -62,26 +62,26 @@ try {
   await check("editing a message makes a new version and keeps the original one click away", async () => {
     await newChatAndSend("first draft question");
     await page.getByText("Hello from the mock model.").waitFor({ timeout: 20_000 });
-    const mine = page.locator("div.group").filter({ hasText: "first draft question" }).first();
+    const mine = page.locator("main div.group").filter({ hasText: "first draft question" }).first();
     await mine.hover();
     await mine.getByRole("button", { name: "Edit" }).click();
     await page.getByLabel("Edit your message").fill("second draft question compare");
     await page.getByRole("button", { name: "Send new version" }).click();
     await page.getByText("second draft question compare").waitFor();
     await page.getByText(/Answer from mock\/free-model/).waitFor({ timeout: 20_000 });
-    assert.equal(await page.locator("div.group").filter({ hasText: "first draft question" }).count(), 0, "the old version is hidden");
+    assert.equal(await page.locator("main div.group").filter({ hasText: "first draft question" }).count(), 0, "the old version is hidden");
     await page.getByRole("group", { name: "Versions of this message" }).first().getByText("2/2").waitFor();
     await page.getByRole("button", { name: "Previous version" }).first().click();
-    await page.locator("div.group").filter({ hasText: "first draft question" }).waitFor();
+    await page.locator("main div.group").filter({ hasText: "first draft question" }).waitFor();
     await page.getByText("Hello from the mock model.").waitFor();
-    assert.equal(await page.locator("div.group").filter({ hasText: "second draft question compare" }).count(), 0);
+    assert.equal(await page.locator("main div.group").filter({ hasText: "second draft question compare" }).count(), 0);
     await page.getByRole("button", { name: "Next version" }).first().click();
-    await page.locator("div.group").filter({ hasText: "second draft question compare" }).waitFor();
+    await page.locator("main div.group").filter({ hasText: "second draft question compare" }).waitFor();
     // Both versions survive a reload.
     await page.reload();
-    await page.locator("div.group").filter({ hasText: "second draft question compare" }).waitFor();
+    await page.locator("main div.group").filter({ hasText: "second draft question compare" }).waitFor();
     await page.getByRole("button", { name: "Previous version" }).first().click();
-    await page.locator("div.group").filter({ hasText: "first draft question" }).waitFor();
+    await page.locator("main div.group").filter({ hasText: "first draft question" }).waitFor();
   });
 
   await check("regenerating keeps the earlier answer as a version", async () => {
@@ -96,10 +96,10 @@ try {
   await check("images go to vision models: attach, preview, answer, and it persists", async () => {
     await setModel("mock/pro-model");
     await page.goto(`${baseUrl}/chat`);
-    await page.getByPlaceholder(/Message/).waitFor();
+    await page.getByRole("textbox", { name: "Message" }).waitFor();
     await page.getByLabel("Attach files").first().setInputFiles({ name: "invoice.png", mimeType: "image/png", buffer: PNG });
     await page.getByRole("list", { name: "Attached files" }).getByText("invoice.png").waitFor();
-    await page.getByPlaceholder(/Message/).fill("what does this say?");
+    await page.getByRole("textbox", { name: "Message" }).fill("what does this say?");
     await page.getByRole("button", { name: "Send message" }).click();
     await page.getByText(/Text in image: INVOICE 4821/).waitFor({ timeout: 20_000 });
     const thumb = page.getByRole("img", { name: "invoice.png" });
@@ -111,10 +111,10 @@ try {
 
   await check("a document is read and its text goes to the model", async () => {
     await page.goto(`${baseUrl}/chat`);
-    await page.getByPlaceholder(/Message/).waitFor();
+    await page.getByRole("textbox", { name: "Message" }).waitFor();
     await page.getByLabel("Attach files").first().setInputFiles({ name: "plan.md", mimeType: "text/markdown", buffer: Buffer.from("# Launch plan\n\nShip the beta on Friday.") });
     await page.getByRole("list", { name: "Attached files" }).getByText("plan.md").waitFor();
-    await page.getByPlaceholder(/Message/).fill("summarize the file");
+    await page.getByRole("textbox", { name: "Message" }).fill("summarize the file");
     await page.getByRole("button", { name: "Send message" }).click();
     await page.getByText(/I read the attachment plan\.md: .*Ship the beta on Friday/).waitFor({ timeout: 20_000 });
     await page.getByRole("link", { name: "plan.md" }).waitFor();
@@ -123,7 +123,7 @@ try {
   await check("a text-only model refuses images with a clear reason, and files can be removed", async () => {
     await setModel("mock/free-model");
     await page.goto(`${baseUrl}/chat`);
-    await page.getByPlaceholder(/Message/).waitFor();
+    await page.getByRole("textbox", { name: "Message" }).waitFor();
     await page.getByLabel("Attach files").first().setInputFiles({ name: "pic.png", mimeType: "image/png", buffer: PNG });
     await page.getByRole("alert").filter({ hasText: /can't read images/ }).waitFor();
     await page.getByLabel("Attach files").first().setInputFiles({ name: "note.txt", mimeType: "text/plain", buffer: Buffer.from("just text") });

@@ -24,6 +24,8 @@ export type NavStatus = "ready" | "planned";
 export interface NavItem {
   id: string;
   href: string;
+  /** Other paths that belong to this item, such as /chat/<id> for the chat home. */
+  aliases?: string[];
   label: string;
   description: string;
   icon: LucideIcon;
@@ -33,20 +35,21 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   {
-    id: "home",
+    id: "chat",
     href: "/",
-    label: "Home",
-    description: "Your day at a glance.",
-    icon: Home,
+    aliases: ["/chat"],
+    label: "Chat",
+    description: "Talk to any model on OpenRouter. Everything else is a slash away.",
+    icon: MessageSquare,
     section: "Workspace",
     status: "ready",
   },
   {
-    id: "chat",
-    href: "/chat",
-    label: "AI Chat",
-    description: "Converse with models through OpenRouter.",
-    icon: MessageSquare,
+    id: "home",
+    href: "/today",
+    label: "Today",
+    description: "Your day at a glance: what's due, what's scheduled, what you've written.",
+    icon: Home,
     section: "Workspace",
     status: "ready",
   },
@@ -194,6 +197,13 @@ export function isActivePath(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Whether a path is the chat home or one of its conversations. Model comparison is its own page. */
+export function isChatPath(pathname: string): boolean {
+  if (pathname === "/chat/compare" || pathname.startsWith("/chat/compare/")) return false;
+  return pathname === "/" || pathname === "/chat" || pathname.startsWith("/chat/");
+}
+
 export function findNavItemForPath(pathname: string): NavItem | undefined {
-  return navItems.find((item) => isActivePath(pathname, item.href));
+  if (isChatPath(pathname)) return navItems.find((item) => item.id === "chat");
+  return navItems.find((item) => isActivePath(pathname, item.href) || item.aliases?.some((alias) => isActivePath(pathname, alias)));
 }

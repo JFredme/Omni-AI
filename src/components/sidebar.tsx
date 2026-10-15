@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Trash2, X } from "lucide-react";
+import { announce, NEW_CHAT_EVENT } from "@/lib/client/app-events";
+import { apiRequest } from "@/lib/client/api";
+import { groupConversations, removeConversation, renameConversationLocally, useConversations } from "@/lib/client/conversations";
 import { useLoginRequired } from "@/lib/client/login-required";
+import { useModifierLabel } from "@/lib/client-hooks";
 import { localDateKey } from "@/lib/dates";
-import { navItems, navSections, isActivePath, type NavItem } from "@/lib/navigation";
+import { isChatPath, navItems, type NavItem } from "@/lib/navigation";
+import { APP_VERSION } from "@/lib/version";
 import { cn } from "@/lib/utils";
+
+const WORKSPACE_KEY = "omni-sidebar-workspace";
 
 /** What needs attention on the task list: overdue first, otherwise what's due today. Refreshed when you return to the tab. */
 function useTaskBadge(): { count: number; overdue: boolean } | null {
@@ -36,58 +43,6 @@ function useTaskBadge(): { count: number; overdue: boolean } | null {
   return badge;
 }
 
-function NavLink({
-  item,
-  collapsed,
-  onNavigate,
-  badge,
-}: {
-  item: NavItem;
-  collapsed: boolean;
-  onNavigate?: () => void;
-  badge?: { count: number; overdue: boolean } | null;
-}) {
-  const pathname = usePathname();
-  const active = isActivePath(pathname, item.href);
-  const Icon = item.icon;
-
-  return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      aria-current={active ? "page" : undefined}
-      title={collapsed ? item.label : undefined}
-      className={cn(
-        "relative flex items-center gap-3 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors",
-        active
-          ? "bg-accent font-medium text-foreground before:absolute before:inset-y-1.5 before:-left-2 before:w-[3px] before:rounded-r before:bg-primary"
-          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-        collapsed && "justify-center px-0",
-      )}
-    >
-      <Icon className="size-[17px] shrink-0" strokeWidth={1.6} aria-hidden />
-      {collapsed ? (
-        <span className="sr-only">{item.label}</span>
-      ) : (
-        <>
-          <span className="truncate">{item.label}</span>
-          {item.status === "planned" ? (
-            <span className="eyebrow ml-auto !text-[10px]">Soon</span>
-          ) : null}
-          {badge ? (
-            <span
-              className={cn("num ml-auto min-w-5 rounded-full px-1.5 text-center text-[11px] font-semibold leading-5", badge.overdue ? "bg-destructive/12 text-destructive" : "bg-primary/10 text-primary")}
-              title={badge.overdue ? `${badge.count} overdue` : `${badge.count} due today`}
-            >
-              {badge.count}
-            </span>
-          ) : null}
-        </>
-      )}
-    </Link>
-  );
-}
-
 async function signOut() {
   try {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -98,76 +53,353 @@ async function signOut() {
   }
 }
 
-function Mark() {
+function Mark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className="size-6 shrink-0 text-primary" aria-hidden>
+    <svg viewBox="0 0 24 24" className={cn("size-6 shrink-0 text-primary", className)} aria-hidden>
       <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" strokeWidth="1.75" />
       <circle cx="12" cy="12" r="3.6" fill="currentColor" />
     </svg>
   );
 }
 
+function useNewChat() {
+  const pathname = usePathname();
+  const router = useRouter();
+  return () => {
+    if (isChatPath(pathname)) announce(NEW_CHAT_EVENT);
+    else router.push("/");
+  };
+}
+
+type Badge = { count: number; overdue: boolean } | null | undefined;
+
+function WorkspaceLink({ item, collapsed, onNavigate, badge }: { item: NavItem; collapsed: boolean; onNavigate?: () => void; badge?: Badge }) {
+  const pathname = usePathname();
+  const active = item.id === "chat" ? isChatPath(pathname) : pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? item.label : item.description}
+      className={cn(
+        "relative flex items-center gap-2.5 rounded-lg text-[13px] transition-colors",
+        collapsed ? "justify-center px-0 py-2" : "px-2.5 py-1.5",
+        active ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+      )}
+    >
+      <Icon className="size-[16px] shrink-0" strokeWidth={1.6} aria-hidden />
+      {collapsed ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
+      {badge && !collapsed ? (
+        <span
+          className={cn("num ml-auto min-w-5 rounded-full px-1.5 text-center text-[11px] font-semibold leading-5", badge.overdue ? "bg-destructive/12 text-destructive" : "bg-primary/10 text-primary")}
+          title={badge.overdue ? `${badge.count} overdue` : `${badge.count} due today`}
+        >
+          {badge.count}
+        </span>
+      ) : null}
+      {badge && collapsed ? <span aria-hidden className={cn("absolute right-3 top-1.5 size-1.5 rounded-full", badge.overdue ? "bg-destructive" : "bg-primary")} /> : null}
+    </Link>
+  );
+}
+
+function ChatRow({ id, title, active, onNavigate }: { id: string; title: string; active: boolean; onNavigate?: () => void }) {
+  const router = useRouter();
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function saveTitle() {
+    setRenaming(false);
+    const next = draft.trim();
+    if (!next || next === title) return;
+    renameConversationLocally(id, next);
+    try {
+      await apiRequest(`/api/conversations/${id}`, { method: "PATCH", json: { title: next } });
+    } catch {
+      renameConversationLocally(id, title);
+      setError("Couldn't rename that chat.");
+    }
+  }
+
+  async function remove() {
+    setConfirming(false);
+    try {
+      await apiRequest(`/api/conversations/${id}`, { method: "DELETE" });
+      removeConversation(id);
+      if (active) router.push("/");
+    } catch {
+      setError("Couldn't delete that chat.");
+    }
+  }
+
+  if (renaming) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => void saveTitle()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") void saveTitle();
+          if (event.key === "Escape") setRenaming(false);
+        }}
+        maxLength={120}
+        aria-label={`New name for ${title}`}
+        className="h-9 w-full rounded-lg border border-ring bg-card px-3 text-[13.5px] outline-none"
+      />
+    );
+  }
+
+  return (
+    <div className="group relative">
+      <Link
+        href={`/chat/${id}`}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        title={title}
+        className={cn(
+          "block truncate rounded-lg px-3 py-2 pr-16 text-[13.5px] leading-5 transition-colors",
+          active ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+        )}
+      >
+        {title}
+      </Link>
+      {confirming ? (
+        <div className="absolute inset-y-0 right-1 flex items-center gap-1 rounded-lg bg-sidebar pl-2">
+          <button type="button" onClick={() => void remove()} className="rounded-md bg-danger px-2 py-1 text-xs font-medium text-white">
+            Delete
+          </button>
+          <button type="button" onClick={() => setConfirming(false)} aria-label="Cancel" className="rounded-md p-1 text-muted-foreground hover:text-foreground">
+            <X className="size-3.5" aria-hidden />
+          </button>
+        </div>
+      ) : (
+        <div className="absolute inset-y-0 right-1 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(title);
+              setRenaming(true);
+            }}
+            aria-label={`Rename ${title}`}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
+          >
+            <Pencil className="size-3.5" aria-hidden />
+          </button>
+          <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${title}`} className="rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-danger">
+            <Trash2 className="size-3.5" aria-hidden />
+          </button>
+        </div>
+      )}
+      {error ? (
+        <p role="alert" className="px-3 pb-1 text-[11px] text-danger">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ChatHistory({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
+  const { list, error } = useConversations();
+  const [query, setQuery] = useState("");
+  const activeId = /^\/chat\/([^/]+)$/.exec(pathname)?.[1] ?? null;
+  const groups = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return groupConversations((list ?? []).filter((item) => !needle || item.title.toLowerCase().includes(needle)));
+  }, [list, query]);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {list && list.length > 6 ? (
+        <div className="px-3 pb-2">
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search chats"
+            aria-label="Search chats"
+            className="h-8 w-full rounded-lg border border-transparent bg-accent/50 px-3 text-[13px] outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:bg-card"
+          />
+        </div>
+      ) : null}
+      <nav aria-label="Chats" className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        {list === null ? (
+          <div className="space-y-1.5 px-1 pt-1" role="status" aria-label="Loading chats">
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="skeleton h-8 rounded-lg" style={{ animationDelay: `${index * 120}ms`, opacity: 1 - index * 0.18 }} />
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
+          <p className="px-3 py-6 text-center text-[13px] text-muted-foreground">{list.length > 0 ? "No chats match." : error ? "Couldn't load your chats." : "No conversations yet."}</p>
+        ) : (
+          groups.map((group) => (
+            <section key={group.label} className="mb-3">
+              <h2 className="eyebrow px-3 pb-1 pt-1.5">{group.label}</h2>
+              <ul className="space-y-px">
+                {group.items.map((item) => (
+                  <li key={item.id}>
+                    <ChatRow id={item.id} title={item.title} active={item.id === activeId} onNavigate={onNavigate} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        )}
+      </nav>
+    </div>
+  );
+}
+
 export function NavContent({
   collapsed,
   onNavigate,
+  onToggleCollapsed,
 }: {
   collapsed: boolean;
   onNavigate?: () => void;
+  onToggleCollapsed?: () => void;
 }) {
-  const settings = navItems.find((item) => item.id === "settings");
+  const pathname = usePathname();
+  const startNewChat = useNewChat();
+  const modifier = useModifierLabel();
   const loginRequired = useLoginRequired();
   const taskBadge = useTaskBadge();
+  const onChat = isChatPath(pathname);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const restored = useRef(false);
+
+  // On a feature page the Workspace group starts open; on the chat it starts closed. Your choice is remembered.
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    let remembered: string | null = null;
+    try {
+      remembered = window.localStorage.getItem(WORKSPACE_KEY);
+    } catch {
+      // Storage can be blocked; the default stands.
+    }
+    // In the phone drawer the links are the only way to other pages, so they start open there too.
+    setWorkspaceOpen(remembered ? remembered === "open" : !onChat || Boolean(onNavigate));
+  }, [onChat, onNavigate]);
+
+  function toggleWorkspace() {
+    setWorkspaceOpen((open) => {
+      try {
+        window.localStorage.setItem(WORKSPACE_KEY, open ? "closed" : "open");
+      } catch {
+        // Not remembered, still applied.
+      }
+      return !open;
+    });
+  }
+
+  const settings = navItems.find((item) => item.id === "settings");
+  const modules = navItems.filter((item) => item.id !== "settings");
+  const newChatClass = "inline-flex items-center gap-2 rounded-xl border border-border bg-card text-sm font-medium transition-[background-color,border-color,transform] hover:border-primary/40 hover:bg-accent/50 active:translate-y-px";
 
   return (
     <>
-      <div
-        className={cn(
-          "flex h-14 shrink-0 items-center gap-2.5 px-4 pt-1",
-          collapsed && "justify-center px-0",
-        )}
-      >
+      <div className={cn("flex h-14 shrink-0 items-center gap-2.5 px-4", collapsed && "justify-center px-0")}>
         <Mark />
         {collapsed ? null : <span className="font-display text-xl font-medium">Omni</span>}
-      </div>
-
-      <nav aria-label="Main" className="flex-1 overflow-y-auto px-2 pb-2">
-        {navSections.map((section) => (
-          <div key={section.name} className="mb-4">
-            {collapsed ? null : (
-              <p className="eyebrow px-2.5 pb-1.5">
-                {section.name}
-              </p>
-            )}
-            <ul className="space-y-0.5">
-              {section.items.map((item) => (
-                <li key={item.id}>
-                  <NavLink item={item} collapsed={collapsed} onNavigate={onNavigate} badge={item.id === "tasks" ? taskBadge : null} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </nav>
-
-      {settings ? (
-        <div className="space-y-0.5 border-t border-sidebar-border px-2 py-2">
-          <NavLink item={settings} collapsed={collapsed} onNavigate={onNavigate} />
-          {loginRequired ? (
+        {onToggleCollapsed && !collapsed ? (
           <button
             type="button"
-            onClick={signOut}
-            title={collapsed ? "Sign out" : undefined}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-[13.5px] text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground",
-              collapsed && "justify-center px-0",
-            )}
+            onClick={onToggleCollapsed}
+            aria-expanded
+            aria-label="Collapse sidebar"
+            title={`Collapse sidebar (${modifier}B)`}
+            className="ml-auto grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
           >
-            <LogOut className="size-[17px] shrink-0" strokeWidth={1.6} aria-hidden />
-            {collapsed ? <span className="sr-only">Sign out</span> : <span>Sign out</span>}
+            <PanelLeftClose className="size-4" aria-hidden />
           </button>
+        ) : null}
+      </div>
+
+      <div className={cn("px-3 pb-3", collapsed && "grid place-items-center px-2")}>
+        <button
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            startNewChat();
+          }}
+          title={collapsed ? "New chat" : undefined}
+          className={cn(newChatClass, collapsed ? "size-10 justify-center" : "h-10 w-full px-3")}
+        >
+          <Plus className="size-4 text-primary" aria-hidden />
+          {collapsed ? <span className="sr-only">New chat</span> : <span>New chat</span>}
+          {collapsed ? null : <kbd className="ml-auto rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground">{modifier}⇧O</kbd>}
+        </button>
+      </div>
+
+      {collapsed ? (
+        <nav aria-label="Main" className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
+          {modules.map((item) => (
+            <WorkspaceLink key={item.id} item={item} collapsed onNavigate={onNavigate} badge={item.id === "tasks" ? taskBadge : null} />
+          ))}
+        </nav>
+      ) : (
+        <ChatHistory onNavigate={onNavigate} />
+      )}
+
+      {collapsed ? null : (
+        <div className="border-t border-sidebar-border px-2 pt-1">
+          <button
+            type="button"
+            onClick={toggleWorkspace}
+            aria-expanded={workspaceOpen}
+            aria-controls="workspace-links"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <span className="eyebrow !text-[10.5px]">Workspace</span>
+            <ChevronDown className={cn("ml-auto size-3.5 transition-transform duration-200", workspaceOpen && "rotate-180")} aria-hidden />
+          </button>
+          <nav id="workspace-links" aria-label="Main" hidden={!workspaceOpen} className="grid grid-cols-2 gap-0.5 pb-2">
+            {modules.map((item) => (
+              <WorkspaceLink key={item.id} item={item} collapsed={false} onNavigate={onNavigate} badge={item.id === "tasks" ? taskBadge : null} />
+            ))}
+          </nav>
+        </div>
+      )}
+
+      <div className="border-t border-sidebar-border p-2">
+        <div className={cn("flex items-center", collapsed ? "flex-col gap-0.5" : "gap-1")}>
+          {settings ? (
+            <div className={collapsed ? "w-full" : "flex-1"}>
+              <WorkspaceLink item={settings} collapsed={collapsed} onNavigate={onNavigate} />
+            </div>
+          ) : null}
+          {loginRequired ? (
+            <button
+              type="button"
+              onClick={signOut}
+              title="Sign out"
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+            >
+              <LogOut className="size-4" strokeWidth={1.6} aria-hidden />
+              <span className="sr-only">Sign out</span>
+            </button>
+          ) : null}
+          {collapsed && onToggleCollapsed ? (
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              aria-expanded={false}
+              aria-label="Expand sidebar"
+              title={`Expand sidebar (${modifier}B)`}
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+            >
+              <PanelLeftOpen className="size-4" aria-hidden />
+            </button>
           ) : null}
         </div>
-      ) : null}
+        {collapsed ? null : <p className="num px-3 pb-1 pt-0.5 text-[11px] text-muted-foreground/70">Omni {APP_VERSION}</p>}
+      </div>
     </>
   );
 }
@@ -185,30 +417,10 @@ export function DesktopSidebar({
       data-collapsed={collapsed}
       className={cn(
         "hidden h-dvh shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 md:flex",
-        collapsed ? "w-[68px]" : "w-60",
+        collapsed ? "w-[68px]" : "w-72",
       )}
     >
-      <NavContent collapsed={collapsed} />
-      <div className="border-t border-sidebar-border p-2">
-        <button
-          type="button"
-          onClick={onToggleCollapsed}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar (⌘B / Ctrl+B)" : "Collapse sidebar (⌘B / Ctrl+B)"}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground",
-            collapsed && "justify-center px-0",
-          )}
-        >
-          {collapsed ? (
-            <PanelLeftOpen className="size-4" aria-hidden />
-          ) : (
-            <PanelLeftClose className="size-4" aria-hidden />
-          )}
-          {collapsed ? <span className="sr-only">Expand sidebar</span> : <span>Collapse</span>}
-        </button>
-      </div>
+      <NavContent collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} />
     </aside>
   );
 }
@@ -236,7 +448,7 @@ export function MobileSidebar({
         role="dialog"
         aria-modal="true"
         aria-label="Navigation"
-        className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar animate-slide-in-left"
+        className="absolute inset-y-0 left-0 flex w-80 max-w-[88vw] flex-col border-r border-sidebar-border bg-sidebar animate-slide-in-left"
       >
         <NavContent collapsed={false} onNavigate={onClose} />
       </aside>

@@ -210,8 +210,8 @@ try {
     assert.equal((await fetch(`${baseUrl}/api/calendar/export`)).status, 401);
   });
 
-  await check("home: today's schedule shows on the dashboard", async () => {
-    await page.goto(`${baseUrl}/`);
+  await check("today: today's schedule shows on the dashboard", async () => {
+    await page.goto(`${baseUrl}/today`);
     await page.getByRole("heading", { name: "Today's schedule" }).waitFor();
     await page.getByRole("link", { name: "Review" }).waitFor();
   });

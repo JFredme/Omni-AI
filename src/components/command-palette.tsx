@@ -7,7 +7,8 @@ import { useTheme } from "next-themes";
 import { leaveChatDraft } from "@/lib/chat/draft";
 import { apiRequest } from "@/lib/client/api";
 import { filterCommands } from "@/lib/command";
-import { navItems } from "@/lib/navigation";
+import { announce, NEW_CHAT_EVENT } from "@/lib/client/app-events";
+import { isChatPath, navItems } from "@/lib/navigation";
 import { toggleSidebarCollapsed } from "@/lib/sidebar-store";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,17 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       icon: item.icon,
       run: () => router.push(item.href),
     })),
+    {
+      id: "action-new-chat",
+      label: "New chat",
+      group: "Actions",
+      keywords: "new conversation start fresh",
+      icon: MessageSquare,
+      run: () => {
+        if (isChatPath(window.location.pathname)) announce(NEW_CHAT_EVENT);
+        else router.push("/");
+      },
+    },
     {
       id: "action-sidebar",
       label: "Toggle sidebar",
@@ -77,7 +89,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const text = query.trim();
   const typed: PaletteCommand[] = text
     ? [
-        { id: "do-ask", label: `Ask AI: ${text}`, group: "Do this", icon: MessageSquare, run: () => { leaveChatDraft(text); router.push("/chat"); } },
+        { id: "do-ask", label: `Ask AI: ${text}`, group: "Do this", icon: MessageSquare, run: () => { leaveChatDraft(text); if (!isChatPath(window.location.pathname)) router.push("/"); } },
         { id: "do-task", label: `Add task: ${text}`, group: "Do this", icon: CheckSquare, run: async () => { await apiRequest("/api/tasks", { json: { title: text.slice(0, 200) } }); router.push("/tasks"); } },
         { id: "do-note", label: `Add note: ${text}`, group: "Do this", icon: StickyNote, run: async () => { const made = await apiRequest<{ note: { id: string } }>("/api/notes", { json: { title: text.slice(0, 200) } }); router.push(`/notes/${made.note.id}`); } },
       ]

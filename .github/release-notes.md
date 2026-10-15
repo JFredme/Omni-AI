@@ -1,4 +1,17 @@
-Downloads for OMNI AI. Pick the one for your device.
+# OMNI AI 0.2.0: the chat-first redesign
+
+OMNI now opens on one polished chat. Everything else (tasks, notes, projects, agents, calendar, research, code, documents, automations, analytics) is still there, tucked under **Workspace** in the sidebar and reachable with slash commands.
+
+**What's new**
+
+- Chat is the home screen: greeting, large message box, conversation history in the sidebar grouped by day, search, rename and delete.
+- Slash commands in the message box: type `/` to see them (for example `/task`, `/note`, `/tasks`). They run locally and are never sent to the model.
+- `⌘⇧O` / `Ctrl+Shift+O` starts a new chat. `⌘K` / `Ctrl+K` opens the command bar.
+- The old dashboard moved to **Today**.
+- New message layout, code blocks, hover actions and loading states; refreshed light and dark themes; better phone layout.
+- The version is shown at the bottom of the sidebar.
+
+## Downloads
 
 | Device | File |
 | --- | --- |
@@ -6,23 +19,37 @@ Downloads for OMNI AI. Pick the one for your device.
 | Windows 10 or 11 (64-bit) | `OMNI-AI-…-windows-x64-setup.exe` |
 | Android 7 or newer | `OMNI-AI-…-android.apk` |
 
-**The Mac and Windows apps run everything on your computer.** They include their own database and server, and your data stays in the app's data folder. You add your own OpenRouter key in Settings.
+All three apps need an **OpenRouter API key** (openrouter.ai/keys). Add it in **Settings** the first time; the chat shows a setup card until you do.
 
-**The Android app does not contain the server.** Phones can't run it, so the app opens an OMNI server that you run (a computer at home, a small server, or a host of your choice with a PostgreSQL database such as Supabase). Enter its address the first time you open the app. If the server can be reached from the internet, use https and set `OMNI_REQUIRE_LOGIN=1` on it.
+## Mac
 
-## These apps are not signed
+1. Open the `.dmg` and drag **OMNI AI** into Applications.
+2. The app is not signed. If macOS says it is "damaged" or from an unidentified developer, open Terminal and run `xattr -cr "/Applications/OMNI AI.app"`, then open it again. (Or: System Settings, Privacy & Security, Open Anyway.)
+3. The first start takes a few seconds while it sets up its own database. Then add your key in Settings.
+4. Data: `~/Library/Application Support/OMNI AI`. Log: `omni.log` in that folder.
+5. Apple silicon only. Intel Macs are not supported by this build.
 
-They are built automatically and are not signed with a paid developer certificate, so your computer will warn you the first time.
+## Windows
 
-- **Mac:** open the `.dmg` and drag OMNI AI to Applications. If macOS says the app is damaged or from an unidentified developer, open Terminal and run `xattr -cr "/Applications/OMNI AI.app"`, then open it again. (Or: System Settings, Privacy & Security, then Open Anyway.)
-- **Windows:** if SmartScreen says "Windows protected your PC", choose More info, then Run anyway.
-- **Android:** allow "Install unknown apps" for your browser or file manager when asked. The APK is signed with a test key, so it can't update an app installed from another source. Uninstall first if installation fails.
+1. Run the `-setup.exe`. If SmartScreen says "Windows protected your PC", choose **More info**, then **Run anyway**.
+2. Pick an install folder if you like, then open OMNI AI from the Start menu. The first start takes a few seconds.
+3. Data: `%APPDATA%\OMNI AI`. Log: `omni.log` in that folder.
+4. If it won't start, close it fully (end "OMNI AI" in Task Manager) and start it again. If Windows Firewall asks, allow local (private) access only; the app only talks to your own computer.
 
-## Where the desktop app keeps your data
+## Android
 
-- Mac: `~/Library/Application Support/OMNI AI`
-- Windows: `%APPDATA%\OMNI AI`
+The phone app does not contain the server. It opens an OMNI server that you run.
 
-Back this folder up if your data matters. It holds the database and the key that encrypts your saved API keys; losing the key means entering saved keys again.
+1. Run OMNI on a computer or server (`npm run build && npm start`, or Docker; see the README) with a PostgreSQL database. Hosted ones such as Supabase work; use the direct or session connection, not the transaction pooler.
+2. On your phone, open the `.apk`. Allow **Install unknown apps** for your browser or file manager when asked.
+3. Open OMNI AI and enter your server's address, for example `https://omni.example.com`. Use https if the server is reachable from the internet, and set `OMNI_REQUIRE_LOGIN=1` on it so only you can get in.
+4. The app is signed with a test key, so it can't update over an app installed from elsewhere. Uninstall first if installation fails.
+5. Exports (PDF, Word and so on) don't download inside the app yet; open the server in a browser to export.
 
-Not tested on real Windows or Android devices before release. Please report problems as issues.
+## Your data
+
+The Mac and Windows apps keep everything on your computer in the data folder above. It holds the database and the key that encrypts your saved API keys. **Back it up** if your data matters; losing the key means re-entering saved keys.
+
+## Not tested everywhere
+
+Built automatically and not signed with a paid certificate. The Mac app was run on the developer's Mac. The Windows and Android apps were built by GitHub Actions but not run on real devices before release. The AI was tested with a stand-in model, not live OpenRouter. Please report problems as issues.

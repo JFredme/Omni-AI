@@ -49,7 +49,7 @@ Laptops are replaced every three years. Report broken equipment to the facilitie
 
 async function chatAsk(question) {
   await page.goto(`${baseUrl}/chat`);
-  const box = page.getByPlaceholder(/Message/);
+  const box = page.getByRole("textbox", { name: "Message" });
   await box.waitFor();
   await box.fill(question);
   await box.press("Enter");
@@ -156,7 +156,7 @@ try {
     await page.goto(`${baseUrl}/chat`);
     await page.getByRole("button", { name: /Knowledge on/ }).click();
     await page.getByRole("button", { name: /Knowledge off/ }).waitFor();
-    const box = page.getByPlaceholder(/Message/);
+    const box = page.getByRole("textbox", { name: "Message" });
     await box.fill("What are the equipment replacement rules?");
     await box.press("Enter");
     await page.getByText("Hello from the mock model.").waitFor({ timeout: 20_000 });
@@ -209,7 +209,7 @@ try {
   await check("memory: 'Remember this' on a chat message saves it", async () => {
     await chatAsk("Say hello");
     await page.getByText("Hello from the mock model.").first().waitFor({ timeout: 20_000 });
-    const message = page.locator("div.group").filter({ hasText: "Say hello" }).first();
+    const message = page.locator("main div.group").filter({ hasText: "Say hello" }).first();
     await message.hover();
     await message.getByRole("button", { name: "Remember this" }).click();
     await message.getByText("Saved to memory").waitFor();

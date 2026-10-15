@@ -3,6 +3,7 @@ import {
   findNavItemForPath,
   getNavItem,
   isActivePath,
+  isChatPath,
   navItems,
   navSections,
 } from "@/lib/navigation";
@@ -50,5 +51,15 @@ describe("isActivePath", () => {
     expect(findNavItemForPath("/settings")?.id).toBe("settings");
     expect(findNavItemForPath("/notes/abc")?.id).toBe("notes");
     expect(findNavItemForPath("/unknown")).toBeUndefined();
+  });
+
+  it("treats the home page and every conversation as the chat, but not model comparison", () => {
+    for (const path of ["/", "/chat", "/chat/abc123"]) {
+      expect(isChatPath(path)).toBe(true);
+      expect(findNavItemForPath(path)?.id).toBe("chat");
+    }
+    expect(isChatPath("/chat/compare")).toBe(false);
+    expect(isChatPath("/today")).toBe(false);
+    expect(findNavItemForPath("/today")?.id).toBe("home");
   });
 });

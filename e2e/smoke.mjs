@@ -45,18 +45,39 @@ async function check(name, fn) {
 try {
   const desktop = await newPage({ width: 1280, height: 800 });
 
-  await check("dashboard renders greeting and sidebar", async () => {
+  await check("the home page is the chat: greeting, message box, ideas and sidebar", async () => {
     await desktop.goto(baseUrl);
     // The greeting depends on the visitor's local time, so it appears once the page has hydrated.
     await desktop.getByRole("heading", { level: 1, name: /Good (morning|afternoon|evening|night)/ }).waitFor();
+    await desktop.getByRole("textbox", { name: "Message" }).waitFor();
+    await desktop.getByRole("list", { name: "Ways to start" }).waitFor();
     await desktop.getByRole("complementary", { name: "Sidebar" }).waitFor();
+    await desktop.getByRole("button", { name: "New chat" }).first().waitFor();
+  });
+
+  await check("the Today page keeps the old dashboard", async () => {
+    await desktop.goto(`${baseUrl}/today`);
+    await desktop.getByRole("heading", { level: 1, name: /Good (morning|afternoon|evening|night)/ }).waitFor();
+    await desktop.getByRole("heading", { name: "This week" }).waitFor();
+  });
+
+  await check("typing / in the message box lists commands, and /tasks goes there", async () => {
+    await desktop.goto(baseUrl);
+    const box = desktop.getByRole("textbox", { name: "Message" });
+    await box.fill("/");
+    await desktop.getByRole("listbox", { name: "Commands" }).waitFor();
+    await desktop.getByRole("option", { name: /Add a task/ }).waitFor();
+    await box.fill("/tasks");
+    await box.press("Enter");
+    await desktop.waitForURL(`${baseUrl}/tasks`);
+    await desktop.getByRole("heading", { name: "Tasks", level: 1 }).waitFor();
   });
 
   await check("Ctrl/Cmd+K opens palette, search navigates to Tasks", async () => {
     await desktop.keyboard.press(`${modifier}+k`);
     const dialog = desktop.getByRole("dialog", { name: "Command palette" });
     await dialog.waitFor();
-    await desktop.getByRole("combobox").fill("tasks");
+    await dialog.getByRole("combobox").fill("tasks");
     await desktop.keyboard.press("Enter");
     await desktop.waitForURL(`${baseUrl}/tasks`);
     await desktop.getByRole("heading", { name: "Tasks", level: 1 }).waitFor();
@@ -83,8 +104,8 @@ try {
     const second = await openPalette();
     await second.getByRole("combobox").fill("what is due this week qzx");
     await desktop.getByRole("option", { name: /Ask AI: what is due this week qzx/ }).click();
-    await desktop.waitForURL(`${baseUrl}/chat`);
-    await waitFor(async () => (await desktop.locator("textarea").first().inputValue()) === "what is due this week qzx");
+    await desktop.waitForURL(`${baseUrl}/`);
+    await waitFor(async () => (await desktop.getByRole("textbox", { name: "Message" }).inputValue()) === "what is due this week qzx");
     assert.equal(await desktop.getByText("what is due this week qzx").count() > 0, true);
 
     // Nothing was sent: no conversation was created.
@@ -140,9 +161,9 @@ try {
     errors.splice(0, errors.length, ...errors.filter((message) => !message.includes("status of 404")));
   });
 
-  await check("desktop dashboard screenshot", async () => {
+  await check("desktop chat screenshot", async () => {
     await desktop.goto(baseUrl);
-    if (screenshotDir) await desktop.screenshot({ path: `${screenshotDir}/desktop-dashboard.png`, fullPage: true });
+    if (screenshotDir) await desktop.screenshot({ path: `${screenshotDir}/desktop-chat.png`, fullPage: true });
   });
 
   const mobile = await newPage({ width: 390, height: 844 }, "dark");
@@ -159,13 +180,13 @@ try {
     await mobile.getByRole("dialog", { name: "Navigation" }).waitFor({ state: "detached" });
   });
 
-  await check("mobile has no horizontal overflow on the dashboard", async () => {
+  await check("mobile has no horizontal overflow on the chat", async () => {
     await mobile.goto(baseUrl);
     const overflow = await mobile.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     assert.ok(overflow <= 1, `page is ${overflow}px wider than the viewport`);
-    if (screenshotDir) await mobile.screenshot({ path: `${screenshotDir}/mobile-dashboard.png`, fullPage: true });
+    if (screenshotDir) await mobile.screenshot({ path: `${screenshotDir}/mobile-chat.png`, fullPage: true });
   });
 
   await desktop.close();

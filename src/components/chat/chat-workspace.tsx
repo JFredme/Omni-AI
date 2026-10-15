@@ -1,26 +1,25 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Pencil } from "lucide-react";
-import { ConversationList } from "@/components/chat/conversation-list";
+import { ArrowDown, BookOpen, Menu, Pencil, Search } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { describeError, useModelCatalog } from "@/components/chat/use-model-catalog";
 import { LiveReply, Transcript } from "@/components/chat/transcript";
 import { ChatMenu } from "@/components/chat/chat-menu";
 import { SummaryDialog } from "@/components/chat/summary-dialog";
+import { useStickToBottom } from "@/components/chat/use-stick-to-bottom";
+import { ConnectHero, StarterGrid, WelcomeHero } from "@/components/chat/welcome";
 import { ModelPicker } from "@/components/model-picker";
+import { ThemeCycleButton } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
+import { announce, NEW_CHAT_EVENT, OPEN_MENU_EVENT, OPEN_PALETTE_EVENT } from "@/lib/client/app-events";
 import { apiRequest, isAbortError, streamTurn } from "@/lib/client/api";
+import { addConversation, refreshConversations, renameConversationLocally } from "@/lib/client/conversations";
+import { leaveChatDraft } from "@/lib/chat/draft";
 import { formatTokens, formatUsd } from "@/lib/format";
 import type { ConversationDetail, ConversationSummary, MessageDto, TurnEvent } from "@/lib/chat/types";
+import { useModifierLabel } from "@/lib/client-hooks";
 import { cn } from "@/lib/utils";
-
-const SUGGESTIONS = [
-  "Help me plan a focused study session for this week.",
-  "Explain a tricky concept in simple terms, then quiz me on it.",
-  "Draft a polite email declining a meeting, with two alternative times.",
-];
 
 const KNOWLEDGE_KEY = "omni.chat.useKnowledge";
 
@@ -53,7 +52,6 @@ type ConversationResponse = { conversation: ConversationDetail };
 export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   const [activeId, setActiveId] = useState<string | null>(initialId);
   const activeIdRef = useRef<string | null>(initialId);
-  const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [pendingModelId, setPendingModelId] = useState<string | null>(null);
   const [live, setLive] = useState<LiveReply | null>(null);
@@ -77,12 +75,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   const selectedModelId = current?.modelId ?? pendingModelId ?? settings?.defaultModelId ?? null;
 
   const loadConversations = useCallback(async () => {
-    try {
-      const data = await apiRequest<{ conversations: ConversationSummary[] }>("/api/conversations");
-      setConversations(data.conversations);
-    } catch (error) {
-      setBanner(describeError(error));
-    }
+    await refreshConversations();
   }, []);
 
   const reloadConversation = useCallback(async (id: string, waitForSettled: boolean) => {
@@ -93,20 +86,6 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
       if (!waitForSettled || !settling) return;
       await new Promise((resolve) => setTimeout(resolve, 400));
     }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    apiRequest<{ conversations: ConversationSummary[] }>("/api/conversations")
-      .then((data) => {
-        if (active) setConversations(data.conversations);
-      })
-      .catch((error: unknown) => {
-        if (active) setBanner(describeError(error));
-      });
-    return () => {
-      active = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -124,18 +103,6 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
     };
   }, [activeId]);
 
-  function selectConversation(id: string) {
-    if (id === activeIdRef.current) return;
-    abortRef.current?.abort();
-    activeIdRef.current = id;
-    setActiveId(id);
-    setLive(null);
-    setBanner(null);
-    setEditingTitle(false);
-    setSystemOpen(false);
-    window.history.pushState(null, "", `/chat/${id}`);
-  }
-
   function startNewChat() {
     abortRef.current?.abort();
     activeIdRef.current = null;
@@ -145,18 +112,20 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
     setBanner(null);
     setEditingTitle(false);
     setSystemOpen(false);
-    window.history.pushState(null, "", "/chat");
+    window.history.pushState(null, "", "/");
+    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Message"]')?.focus());
   }
 
-  async function deleteConversation(id: string) {
-    try {
-      await apiRequest(`/api/conversations/${id}`, { method: "DELETE" });
-      setConversations((prev) => prev?.filter((conversation) => conversation.id !== id) ?? null);
-      if (activeIdRef.current === id) startNewChat();
-    } catch (error) {
-      setBanner(describeError(error));
-    }
-  }
+  // "New chat" in the sidebar, the command bar and the keyboard all arrive as this one signal.
+  const startNewChatRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    startNewChatRef.current = startNewChat;
+  });
+  useEffect(() => {
+    const onNewChat = () => startNewChatRef.current();
+    window.addEventListener(NEW_CHAT_EVENT, onNewChat);
+    return () => window.removeEventListener(NEW_CHAT_EVENT, onNewChat);
+  }, []);
 
   function handleTurnEvent(conversationId: string, event: TurnEvent) {
     switch (event.type) {
@@ -197,7 +166,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         conversationId = created.conversation.id;
         activeIdRef.current = conversationId;
         setActiveId(conversationId);
-        setConversations((prev) => [created.conversation, ...(prev ?? [])]);
+        addConversation(created.conversation);
         window.history.replaceState(null, "", `/chat/${conversationId}`);
         await reloadConversation(conversationId, false);
       }
@@ -276,6 +245,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         json: { title },
       });
       if (activeIdRef.current === id) setDetail(conversation);
+      renameConversationLocally(id, conversation.title);
       await loadConversations();
     } catch (error) {
       setBanner(describeError(error));
@@ -302,180 +272,159 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
     current && lastMessage && (lastMessage.role === "user" || lastMessage.role === "assistant"),
   );
   const hasMessages = (current?.messages.length ?? 0) > 0;
+  const loadingConversation = activeId !== null && !current;
+  // The welcome screen shows for a brand-new chat; as soon as there is something to read, the message box drops to the bottom.
+  const welcome = !hasMessages && !streaming && !loadingConversation;
+  const modifier = useModifierLabel();
+  const follow = `${current?.messages.length ?? 0}:${live?.text.length ?? 0}:${streaming}`;
+  const { scroller, onScroll, away, scrollToBottom } = useStickToBottom(follow);
 
   return (
-    <div className="flex h-[calc(100dvh-6.5rem)] min-h-[32rem] flex-col gap-4 md:flex-row">
-      <aside className="hidden w-64 shrink-0 flex-col rounded-2xl border border-border p-3 md:flex">
-        <ConversationList
-          conversations={conversations}
-          activeId={activeId}
-          loading={conversations === null}
-          onNew={startNewChat}
-          onSelect={selectConversation}
-          onDelete={deleteConversation}
-        />
-      </aside>
+    <div className="relative flex h-full min-h-0 flex-col">
+      <header className="flex h-14 shrink-0 items-center gap-1.5 px-3 sm:px-5">
+        <button
+          type="button"
+          onClick={() => announce(OPEN_MENU_EVENT)}
+          aria-label="Open navigation"
+          className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground md:hidden"
+        >
+          <Menu className="size-5" aria-hidden />
+        </button>
 
-      <details className="shrink-0 rounded-2xl border border-border p-3 md:hidden">
-        <summary className="cursor-pointer text-sm font-medium">
-          Conversations{conversations ? ` (${conversations.length})` : ""}
-        </summary>
-        <div className="mt-3 flex max-h-72 flex-col">
-          <ConversationList
-            conversations={conversations}
-            activeId={activeId}
-            loading={conversations === null}
-            onNew={startNewChat}
-            onSelect={selectConversation}
-            onDelete={deleteConversation}
-          />
-        </div>
-      </details>
-
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border">
-        <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            {current && editingTitle ? (
-              <input
-                autoFocus
-                value={titleDraft}
-                onChange={(event) => setTitleDraft(event.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void saveTitle();
-                  if (event.key === "Escape") setEditingTitle(false);
-                }}
-                maxLength={120}
-                aria-label="Conversation title"
-                className="h-8 min-w-0 flex-1 rounded-md border border-border bg-card px-2 text-sm font-semibold outline-none focus:border-ring"
-              />
-            ) : (
-              <>
-                <h2 className="truncate text-sm font-semibold">{current?.title ?? "New chat"}</h2>
-                {current ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTitleDraft(current.title);
-                      setEditingTitle(true);
-                    }}
-                    aria-label="Rename conversation"
-                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <Pencil className="size-3.5" aria-hidden />
-                  </button>
-                ) : null}
-              </>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setUseKnowledge(!useKnowledge)}
-            aria-pressed={useKnowledge}
-            title={useKnowledge ? "Replies can use your saved documents. Click to turn off." : "Replies won't look at your documents. Click to turn on."}
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              useKnowledge ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <BookOpen className="size-4" aria-hidden />
-            <span className="hidden sm:inline">Knowledge {useKnowledge ? "on" : "off"}</span>
-          </button>
-
-          {keyConfigured ? (
-            <ModelPicker
-              models={models}
-              value={selectedModelId}
-              favoriteIds={settings?.favoriteModelIds ?? []}
-              onSelect={changeModel}
-              onToggleFavorite={(modelId) => {
-                void catalog.toggleFavorite(modelId).catch((error: unknown) => setBanner(describeError(error)));
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          {current && editingTitle ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void saveTitle();
+                if (event.key === "Escape") setEditingTitle(false);
               }}
-              loading={catalog.modelsLoading}
-              loadError={catalog.modelsError}
-              disabled={streaming}
-              align="right"
+              maxLength={120}
+              aria-label="Conversation title"
+              className="h-8 min-w-0 max-w-md flex-1 rounded-lg border border-ring bg-card px-2.5 text-sm font-medium outline-none"
             />
-          ) : null}
+          ) : current ? (
+            <>
+              <h2 className="truncate text-sm font-medium">{current.title}</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setTitleDraft(current.title);
+                  setEditingTitle(true);
+                }}
+                aria-label="Rename conversation"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Pencil className="size-3.5" aria-hidden />
+              </button>
+              {current.usage.requests > 0 ? (
+                <span
+                  className="num ml-1 hidden truncate text-xs text-muted-foreground lg:inline"
+                  title={current.usage.unknownCostRequests > 0 ? `${current.usage.unknownCostRequests} request(s) have no cost data` : "Cost reported by OpenRouter or estimated from model pricing"}
+                >
+                  {current.usage.totalTokens > 0 ? `${formatTokens(current.usage.totalTokens)} tokens · ${formatUsd(current.usage.costUsd)}` : "Usage unavailable"}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <h2 className="hidden text-sm font-medium text-muted-foreground sm:block">New chat</h2>
+          )}
+        </div>
 
-          <ChatMenu
-            conversationId={current?.id ?? null}
-            hasMessages={hasMessages}
-            hasInstructions={Boolean(current?.systemPrompt)}
-            onSummarize={() => setSummaryOpen(true)}
-            onInstructions={() => {
-              setSystemDraft(current?.systemPrompt ?? "");
-              setSystemOpen((open) => !open);
+        {keyConfigured ? (
+          <ModelPicker
+            models={models}
+            value={selectedModelId}
+            favoriteIds={settings?.favoriteModelIds ?? []}
+            onSelect={changeModel}
+            onToggleFavorite={(modelId) => {
+              void catalog.toggleFavorite(modelId).catch((error: unknown) => setBanner(describeError(error)));
             }}
+            loading={catalog.modelsLoading}
+            loadError={catalog.modelsError}
+            disabled={streaming}
+            align="right"
           />
+        ) : null}
 
-          {current && current.usage.requests > 0 ? (
-            <span
-              className="text-xs text-muted-foreground"
-              title={
-                current.usage.unknownCostRequests > 0
-                  ? `${current.usage.unknownCostRequests} request(s) have no cost data`
-                  : "Cost reported by OpenRouter or estimated from model pricing"
-              }
-            >
-              {current.usage.totalTokens > 0
-                ? `${formatTokens(current.usage.totalTokens)} tokens · ${formatUsd(current.usage.costUsd)}`
-                : "Usage unavailable"}
-            </span>
-          ) : null}
-        </header>
+        <button
+          type="button"
+          onClick={() => setUseKnowledge(!useKnowledge)}
+          aria-pressed={useKnowledge}
+          title={useKnowledge ? "Replies can use your saved documents. Click to turn off." : "Replies won't look at your documents. Click to turn on."}
+          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "max-sm:hidden", useKnowledge ? "text-primary" : "text-muted-foreground")}
+        >
+          <BookOpen className="size-4" aria-hidden />
+          <span className="hidden lg:inline">Knowledge {useKnowledge ? "on" : "off"}</span>
+        </button>
 
-        {current && systemOpen ? (
+        <ChatMenu
+          conversationId={current?.id ?? null}
+          hasMessages={hasMessages}
+          hasInstructions={Boolean(current?.systemPrompt)}
+          onSummarize={() => setSummaryOpen(true)}
+          onInstructions={() => {
+            setSystemDraft(current?.systemPrompt ?? "");
+            setSystemOpen((open) => !open);
+          }}
+        />
+
+        <button
+          type="button"
+          onClick={() => announce(OPEN_PALETTE_EVENT)}
+          aria-label="Open command palette"
+          title={`Search everything (${modifier}K)`}
+          className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground max-sm:hidden"
+        >
+          <Search className="size-4" aria-hidden />
+        </button>
+        <span className="max-sm:hidden">
+          <ThemeCycleButton />
+        </span>
+      </header>
+
+      {current && systemOpen ? (
+        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
           <SystemPromptPanel
             value={systemDraft}
             onChange={setSystemDraft}
             onSave={() => void saveSystemPrompt(systemDraft.trim() || null)}
             onClose={() => setSystemOpen(false)}
           />
-        ) : null}
+        </div>
+      ) : null}
 
-        {banner ? (
-          <div role="alert" className="mx-4 mt-3 rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">
+      {banner ? (
+        <div className="mx-auto w-full max-w-3xl px-4 pt-2 sm:px-6">
+          <div role="alert" className="rounded-xl border border-danger/40 bg-danger/5 px-3.5 py-2.5 text-sm text-danger">
             {banner}
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          {settings && !keyConfigured ? (
-            <EmptyState
-              title="Connect OpenRouter to start chatting"
-              body="Add your OpenRouter API key in Settings. It is encrypted before it is stored, and it never leaves the server."
-              action={
-                <Link href="/settings" className={buttonVariants({ variant: "primary" })}>
-                  Open settings
-                </Link>
-              }
-            />
-          ) : !current && !streaming ? (
-            <EmptyState
-              title="What would you like to work on?"
-              body="Start a conversation with any model on OpenRouter. Replies stream in as they are generated, and every conversation is saved."
-              action={
-                <div className="flex w-full flex-col">
-                  {SUGGESTIONS.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => void runTurn("send", suggestion)}
-                      disabled={!selectedModelId}
-                      className="border-t border-border py-3 text-left text-sm transition-colors hover:text-primary disabled:opacity-50"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                  {!selectedModelId && models.length > 0 ? (
-                    <p className="text-xs text-muted-foreground">Choose a model above to get started.</p>
-                  ) : null}
+      {/* The scrolling conversation. On the welcome screen it holds the greeting, and the message box and ideas follow it, so the
+          whole group sits in the middle of the window; once there are messages the box is pinned to the bottom. */}
+      <div ref={scroller} onScroll={onScroll} className={cn("min-h-0 overflow-y-auto", welcome ? "flex flex-1 flex-col justify-end" : "flex-1")}>
+        {welcome ? (
+          <WelcomeHero ready={!settings || keyConfigured} />
+        ) : loadingConversation ? (
+          <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8 sm:px-6" role="status" aria-label="Loading conversation">
+            {[0, 1].map((index) => (
+              <div key={index} className="flex gap-3.5">
+                <span className="skeleton size-8 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-2.5 pt-1.5">
+                  <div className="skeleton h-3.5 w-11/12 rounded" />
+                  <div className="skeleton h-3.5 w-4/5 rounded" />
+                  <div className="skeleton h-3.5 w-2/3 rounded" />
                 </div>
-              }
-            />
-          ) : (
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-6 sm:px-6">
             <Transcript
               messages={current?.messages ?? []}
               live={live}
@@ -486,13 +435,31 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
               onEdit={(messageId, content) => void runTurn("send", content, { replaceMessageId: messageId })}
               onSwitchBranch={(messageId) => void switchBranch(messageId)}
             />
-          )}
-          {!hasMessages && streaming && !live ? <p className="text-sm text-muted-foreground">Starting…</p> : null}
-        </div>
+          </div>
+        )}
+        {!hasMessages && streaming && !live ? <p className="mx-auto w-full max-w-3xl px-6 text-sm text-muted-foreground">Starting…</p> : null}
+      </div>
 
-        {settings ? (
+      {away && !welcome ? (
+        <button
+          type="button"
+          onClick={() => scrollToBottom(true)}
+          aria-label="Jump to latest message"
+          className="animate-pop-in absolute bottom-36 left-1/2 z-10 grid size-9 -translate-x-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:text-foreground"
+        >
+          <ArrowDown className="size-4" aria-hidden />
+        </button>
+      ) : null}
+
+      {settings ? (
+        <div className={cn("shrink-0", welcome ? "" : "chat-fade-bottom pt-2")}>
+          {settings && !keyConfigured && welcome ? <ConnectHero /> : null}
           <Composer
-            onSend={(content, attachmentIds) => void runTurn("send", content, { attachmentIds })}
+            onSend={(content, attachmentIds) => {
+              scrollToBottom();
+              void runTurn("send", content, { attachmentIds });
+            }}
+            onNewChat={startNewChat}
             canReadImages={selectedModel ? selectedModel.capabilities.imageInput : true}
             modelName={selectedModel?.name}
             onStop={() => abortRef.current?.abort()}
@@ -506,21 +473,16 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
                   : undefined
             }
           />
-        ) : null}
-      </section>
-      {summaryOpen && current ? <SummaryDialog conversationId={current.id} title={current.title} onClose={() => setSummaryOpen(false)} /> : null}
-    </div>
-  );
-}
+        </div>
+      ) : null}
 
-function EmptyState({ title, body, action }: { title: string; body: string; action: React.ReactNode }) {
-  return (
-    <div className="mx-auto flex h-full min-h-64 max-w-xl flex-col justify-center gap-5">
-      <div className="space-y-2">
-        <h3 className="font-display text-3xl font-medium leading-tight">{title}</h3>
-        <p className="text-sm text-muted-foreground">{body}</p>
-      </div>
-      {action}
+      {welcome ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <StarterGrid disabled={!keyConfigured} onPick={(prompt) => leaveChatDraft(prompt)} />
+        </div>
+      ) : null}
+
+      {summaryOpen && current ? <SummaryDialog conversationId={current.id} title={current.title} onClose={() => setSummaryOpen(false)} /> : null}
     </div>
   );
 }
@@ -537,7 +499,7 @@ function SystemPromptPanel({
   onClose: () => void;
 }) {
   return (
-    <div className="mx-4 mt-3 space-y-2 rounded-xl border border-border bg-card p-3">
+    <div className="mt-2 space-y-2 rounded-2xl border border-border bg-card p-3.5">
       <label htmlFor="system-prompt" className="text-sm font-medium">
         Instructions for this conversation
       </label>
