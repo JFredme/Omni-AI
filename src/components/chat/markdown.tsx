@@ -80,10 +80,39 @@ const components: Components = {
   hr: () => <hr className="my-4 border-border" />,
 };
 
-export function Markdown({ children }: { children: string }) {
+type HastNode = { type: string; tagName?: string; value?: string; properties?: Record<string, unknown>; children?: HastNode[] };
+
+/** Wraps each word of ordinary text (not code) in a span that fades in when it first appears. Used while a reply is being written. */
+function rehypeWordFade() {
+  const wrap = (node: HastNode) => {
+    if (!node.children) return;
+    if (node.type === "element" && (node.tagName === "pre" || node.tagName === "code")) return;
+    const next: HastNode[] = [];
+    for (const child of node.children) {
+      if (child.type === "text" && child.value) {
+        for (const part of child.value.split(/(\s+)/)) {
+          if (!part) continue;
+          next.push(/^\s+$/.test(part) ? { type: "text", value: part } : { type: "element", tagName: "span", properties: { className: ["w-in"] }, children: [{ type: "text", value: part }] });
+        }
+      } else {
+        wrap(child);
+        next.push(child);
+      }
+    }
+    node.children = next;
+  };
+  return (tree: HastNode) => wrap(tree);
+}
+
+/** `animate` is for a reply that is still being written: words fade in as they arrive. */
+export function Markdown({ children, animate = false }: { children: string; animate?: boolean }) {
   return (
     <div className="min-w-0 break-words">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[[rehypeHighlight, { detect: false, ignoreMissing: true }]]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[[rehypeHighlight, { detect: false, ignoreMissing: true }], ...(animate ? [rehypeWordFade] : [])]}
+        components={components}
+      >
         {children}
       </ReactMarkdown>
     </div>

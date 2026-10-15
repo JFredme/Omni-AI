@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, BookMarked, Check, ChevronLeft, ChevronRight, Copy, FileText, Pencil, RotateCcw, Square } from "lucide-react";
 import { Markdown } from "@/components/chat/markdown";
+import { useSmoothText } from "@/components/chat/use-smooth-text";
 import { Sources } from "@/components/chat/sources";
 import { apiRequest, ClientApiError } from "@/lib/client/api";
 import type { Citation } from "@/lib/knowledge/types";
@@ -70,10 +71,7 @@ export function Transcript({
         <div className="flex gap-3.5">
           <Avatar active />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="text-[16px] leading-[1.75]">
-              {live.text ? <Markdown>{live.text}</Markdown> : <ThinkingDots />}
-              {live.text ? <span className="caret" aria-hidden /> : null}
-            </div>
+            <LiveText live={live} streaming={streaming} />
             <Sources citations={live.citations} content={live.text} />
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>{live.modelId ?? "Model"} · generating</span>
@@ -133,16 +131,27 @@ function RememberButton({ content, inline = false }: { content: string; inline?:
   );
 }
 
-function ThinkingDots() {
+/** What a reply looks like while it is being written: shimmering placeholders first, then words that fade in as they arrive. */
+function LiveText({ live, streaming }: { live: LiveReply; streaming: boolean }) {
+  const text = useSmoothText(live.text, streaming);
+  if (!text) return <Thinking searching={live.searching} />;
   return (
-    <span className="inline-flex items-center gap-2 py-1 text-sm text-muted-foreground" role="status">
-      <span className="inline-flex gap-1" aria-hidden>
-        <span className="size-1.5 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.3s]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.15s]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-primary/70" />
-      </span>
-      Thinking…
-    </span>
+    <div className="text-[16px] leading-[1.75]">
+      <Markdown animate>{text}</Markdown>
+    </div>
+  );
+}
+
+function Thinking({ searching = false }: { searching?: boolean }) {
+  return (
+    <div role="status" className="space-y-3 py-1">
+      <span className="shimmer-text text-sm font-medium">{searching ? "Searching the web…" : "Thinking…"}</span>
+      <div className="space-y-2.5" aria-hidden>
+        <div className="skeleton h-3.5 w-full rounded-full" />
+        <div className="skeleton h-3.5 w-5/6 rounded-full" />
+        <div className="skeleton h-3.5 w-2/3 rounded-full" />
+      </div>
+    </div>
   );
 }
 
@@ -306,7 +315,7 @@ function MessageBubble({
           {message.content ? (
             <Markdown>{message.content}</Markdown>
           ) : streaming ? (
-            <ThinkingDots />
+            <Thinking />
           ) : failed ? null : (
             <p className="text-sm italic text-muted-foreground">Stopped before any text was generated.</p>
           )}

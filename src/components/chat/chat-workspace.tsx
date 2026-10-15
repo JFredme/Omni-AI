@@ -93,6 +93,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   const [useKnowledge, setUseKnowledge] = useKnowledgeToggle();
   const [webMode, setWebMode] = useWebMode();
   const searchingRef = useRef(false);
+  const liveTextRef = useRef("");
   const [summaryOpen, setSummaryOpen] = useState(false);
   // Set while an edited message is being sent, so the screen shows the new version in place of the old.
   const replacingRef = useRef<string | null>(null);
@@ -172,6 +173,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
         }
         break;
       case "delta":
+        liveTextRef.current += event.text;
         setLive((prev) => (prev ? { ...prev, text: prev.text + event.text } : prev));
         break;
       case "web":
@@ -185,6 +187,7 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
   async function runTurn(kind: "send" | "regenerate", content?: string, options: { attachmentIds?: string[]; replaceMessageId?: string } = {}) {
     replacingRef.current = options.replaceMessageId ?? null;
     searchingRef.current = shouldSearchWeb(content ?? "", webMode);
+    liveTextRef.current = "";
     const controller = new AbortController();
     abortRef.current = controller;
     setStreaming(true);
@@ -225,6 +228,8 @@ export function ChatWorkspace({ initialId }: { initialId: string | null }) {
       if (!isAbortError(error)) setBanner(describeError(error));
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
+      // Let the last words finish flowing in before the finished message takes over.
+      if (liveTextRef.current) await new Promise((resolve) => setTimeout(resolve, 380));
       setLive(null);
       setStreaming(false);
       if (conversationId) {
