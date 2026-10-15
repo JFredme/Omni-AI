@@ -36,6 +36,13 @@ If you use the Mac or Windows app, it can serve your phone directly:
 3. Enter the 6-digit code when asked. Once per phone.
 4. Done. Keep the computer on and the app open while you use the phone. Turn phone access off when you are done; it also turns off whenever OMNI closes.
 
+
+| 1. On the computer | 2. In the Android app | 3. Enter the code |
+| --- | --- | --- |
+| <img src="docs/images/phone-desktop.png" width="260"> | <img src="docs/images/phone-android-connect.png" width="200"> | <img src="docs/images/phone-android-code.png" width="200"> |
+
+(The address and code in the pictures are examples. Yours will be different.)
+
 Anyone on the same Wi-Fi who has the code can use your OMNI while it is on, so do not leave it on in shared places. The code changes every time you turn it on.
 
 ## Android
