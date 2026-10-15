@@ -255,16 +255,17 @@ Open **Analytics** for 7, 30, or 90 days of your own data: tasks created and fin
 
 ## Apps (Mac, Windows, Android)
 
-Current version: **0.2.0** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; see [INSTALL.md](INSTALL.md); each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
+Current version: **0.3.0** (shown at the bottom of the sidebar). Download the apps from the repository's **Releases** page; see [INSTALL.md](INSTALL.md); each release lists install steps, first-run warnings, data locations and troubleshooting for Mac, Windows and Android (`.github/release-notes.md`).
 
 The home screen is the chat. Other sections live under **Workspace** in the sidebar or via slash commands (type `/`); the old dashboard is at `/today`.
 
 - **Mac and Windows** are self-contained: the app starts its own PostgreSQL database and the OMNI server on your computer, and opens them in a window. Nothing to install first. Data lives in the app's data folder (`~/Library/Application Support/OMNI AI` on Mac, `%APPDATA%\OMNI AI` on Windows). Its random database password and encryption key are kept in `secrets.json` there, readable only by you. Sign-in is off, because only this computer can reach it.
+- **Phone access:** in the Mac or Windows app, **Phone → Connect your phone…** serves your phone on the same Wi-Fi, gated by a 6-digit code (off by default and whenever the app closes).
 - **Android** can't run a server or database, so the app opens an OMNI server that you run. Enter its address on first launch. Any PostgreSQL works as that server's `DATABASE_URL`, including a hosted one such as Supabase (use the direct or session connection, not the transaction pooler). If the server is reachable from the internet, serve it over https and set `OMNI_REQUIRE_LOGIN=1`. Exports (PDF, Word and so on) download in a browser; the app's web view can't save downloads yet.
 - **Not signed.** See the release notes for the first-launch warnings on each system.
 - **Not verified:** the Mac app was built and run on the machine this was developed on. The Windows and Android apps are built only by GitHub Actions and were never run by me, and the Mac build is Apple silicon only.
 
-To build them yourself: `cd desktop && npm ci && npm run dist` (builds for the system you are on), and for Android `cd android && npm ci && npx cap sync android && cd android && ./gradlew assembleDebug` (needs Java 21 and the Android SDK). Pushing a tag such as `v0.2.0` makes GitHub build everything and publish a release.
+To build them yourself: `cd desktop && npm ci && npm run dist` (builds for the system you are on), and for Android `cd android && npm ci && npx cap sync android && cd android && ./gradlew assembleDebug` (needs Java 21 and the Android SDK). Pushing a tag such as `v0.3.0` makes GitHub build everything and publish a release.
 
 ## Command bar
 

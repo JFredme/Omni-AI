@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Connect your phone</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f6f2ea; --fg:#2b2a26; --muted:#6f6a5e; --card:#fff; --line:#ddd6c6; --green:#2f6b4a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1d1c19; --fg:#ece8dd; --muted:#a39e90; --card:#272521; --line:#3a3731; --green:#4f9a73; } }
+  body { margin:0; padding:26px 28px; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui, sans-serif; }
+  h1 { font:600 22px Georgia, serif; margin:0 0 4px; }
+  p { margin:0 0 14px; color:var(--muted); }
+  ol { margin:0 0 18px; padding-left: 20px; } li { margin-bottom: 6px; }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+  .label { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .big { font:600 22px ui-monospace, monospace; word-break:break-all; margin-top:2px; }
+  .code { font-size:34px; letter-spacing:.3em; }
+  button { font:600 14px system-ui; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--green); border-color:var(--green); color:#fff; }
+  .warn { color:#b3261e; }
+  .row { display:flex; gap:10px; align-items:center; }
+</style>
+<h1>Connect your phone</h1>
+<p>Use OMNI on your phone while this computer is on and on the same Wi-Fi.</p>
+<div id="app"></div>
+<script>
+  const app = document.getElementById("app");
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  function render(s) {
+    if (!s.hasNetwork) {
+      app.innerHTML = '<div class="box warn">This computer is not connected to a network. Connect to Wi-Fi first.</div>';
+      return;
+    }
+    if (!s.enabled) {
+      app.innerHTML = '<ol><li>Install the OMNI AI Android app (from the Releases page on GitHub).</li><li>Turn on phone access here.</li><li>Open the app and type the address and code that appear.</li></ol><button class="primary" id="on">Turn on phone access</button>';
+      document.getElementById("on").onclick = async () => render(await window.omniPhone.set(true));
+      return;
+    }
+    app.innerHTML =
+      '<div class="box"><div class="label">1. Address (type this in the phone app)</div><div class="big">' + esc(s.address) + '</div></div>' +
+      '<div class="box"><div class="label">2. Code (the phone asks for it once)</div><div class="big code">' + esc(s.code) + '</div></div>' +
+      '<p>' + (s.phones ? s.phones + ' phone' + (s.phones === 1 ? '' : 's') + ' connected. ' : '') + 'Anyone on this Wi-Fi who has the code can use your OMNI, so turn this off when you are done. It also turns off when you close OMNI.</p>' +
+      '<button id="off">Turn off phone access</button>';
+    document.getElementById("off").onclick = async () => render(await window.omniPhone.set(false));
+  }
+  window.omniPhone.state().then(render);
+  setInterval(async () => render(await window.omniPhone.state()), 4000);
+</script>

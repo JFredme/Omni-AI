@@ -1,12 +1,13 @@
 // OMNI AI desktop app. Starts a private PostgreSQL database and the OMNI server on this computer, then shows them in a window.
 // Nothing leaves the machine except the AI requests you make. Data lives in the app's data folder (see README).
-const { app, BrowserWindow, Menu, dialog, shell } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
 const { execFileSync, spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
 const { applyMigrations } = require("./migrate");
+const { createPhoneBridge } = require("./phone");
 
 const PREFERRED_WEB_PORT = 47831; // A steady address keeps the app's saved settings (theme, sidebar) between launches.
 const HOST = "127.0.0.1";
@@ -23,6 +24,8 @@ const migrationsDir = packaged ? path.join(process.resourcesPath, "migrations") 
 let postgres = null;
 let server = null;
 let mainWindow = null;
+let phoneWindow = null;
+let phone = null;
 let stopping = false;
 let logFile = null;
 
@@ -216,6 +219,21 @@ function isAppUrl(url, port) {
   }
 }
 
+function showPhoneWindow() {
+  if (phoneWindow) return phoneWindow.focus();
+  phoneWindow = new BrowserWindow({
+    width: 520,
+    height: 560,
+    resizable: false,
+    title: "Connect your phone",
+    parent: mainWindow ?? undefined,
+    webPreferences: { preload: path.join(__dirname, "phone-preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, devTools: false },
+  });
+  phoneWindow.setMenuBarVisibility(false);
+  phoneWindow.on("closed", () => (phoneWindow = null));
+  void phoneWindow.loadFile(path.join(__dirname, "phone.html"));
+}
+
 function buildMenu() {
   const mac = process.platform === "darwin";
   return Menu.buildFromTemplate([
@@ -224,6 +242,7 @@ function buildMenu() {
     { role: "editMenu" },
     { label: "View", submenu: [{ role: "reload" }, { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" }, { type: "separator" }, { role: "togglefullscreen" }] },
     { role: "windowMenu" },
+    { label: "Phone", submenu: [{ label: "Connect your phone…", click: showPhoneWindow }] },
     {
       label: "Help",
       submenu: [{ label: "Open the data folder", click: () => shell.openPath(app.getPath("userData")) }, { label: "Open the log file", click: () => shell.showItemInFolder(logFile) }],
@@ -250,6 +269,9 @@ async function launch() {
     const secrets = loadSecrets(dataDir);
     const databaseUrl = await startDatabase(dataDir, secrets);
     const port = await startServer(databaseUrl, secrets);
+    phone = createPhoneBridge({ targetPort: port, log });
+    ipcMain.handle("phone:state", () => phone.state());
+    ipcMain.handle("phone:set", (_event, enabled) => (enabled ? phone.enable() : phone.disable()));
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:/.test(url) && !isAppUrl(url, port)) shell.openExternal(url);
       return { action: "deny" };
@@ -271,6 +293,7 @@ async function launch() {
 async function shutdown() {
   if (stopping) return;
   stopping = true;
+  if (phone) await phone.disable().catch(() => {});
   if (server && server.exitCode === null) {
     server.kill();
     await new Promise((resolve) => {

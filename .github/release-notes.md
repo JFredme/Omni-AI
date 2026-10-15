@@ -1,4 +1,8 @@
-# OMNI AI 0.2.0: the chat-first redesign
+# OMNI AI 0.3.0: connect your phone
+
+**New in 0.3.0:** the Mac and Windows apps can now serve your phone. Choose **Phone → Connect your phone…**, turn it on, and type the address and 6-digit code into the Android app. The Android app also now accepts a plain address like `192.168.1.20:47832`. (0.2.0 brought the chat-first redesign below.)
+
+## The chat-first redesign (0.2.0)
 
 OMNI now opens on one polished chat. Everything else (tasks, notes, projects, agents, calendar, research, code, documents, automations, analytics) is still there, tucked under **Workspace** in the sidebar and reachable with slash commands.
 
@@ -36,9 +40,20 @@ All three apps need an **OpenRouter API key** (openrouter.ai/keys). Add it in **
 3. Data: `%APPDATA%\OMNI AI`. Log: `omni.log` in that folder.
 4. If it won't start, close it fully (end "OMNI AI" in Task Manager) and start it again. If Windows Firewall asks, allow local (private) access only; the app only talks to your own computer.
 
+## Connect your phone (easiest way)
+
+If you use the Mac or Windows app, it can serve your phone directly:
+
+1. On the computer, open OMNI AI and choose **Phone → Connect your phone…** from the menu bar, then **Turn on phone access**. A window shows an address (like `http://192.168.1.20:47832`) and a 6-digit code.
+2. On the phone (same Wi-Fi), open the OMNI AI Android app and type the address.
+3. Enter the 6-digit code when asked. Once per phone.
+4. Done. Keep the computer on and the app open while you use the phone. Turn phone access off when you are done; it also turns off whenever OMNI closes.
+
+Anyone on the same Wi-Fi who has the code can use your OMNI while it is on, so do not leave it on in shared places. The code changes every time you turn it on.
+
 ## Android
 
-The phone app does not contain the server. It opens an OMNI server that you run.
+The phone app does not contain the server. The easiest way is the Mac or Windows app's built-in phone access (above); the steps below are for running your own server.
 
 1. Run OMNI on a computer or server (`npm run build && npm start`, or Docker; see the README) with a PostgreSQL database. Hosted ones such as Supabase work; use the direct or session connection, not the transaction pooler.
 2. On your phone, open the `.apk`. Allow **Install unknown apps** for your browser or file manager when asked.
